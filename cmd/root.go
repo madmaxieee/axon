@@ -1,16 +1,17 @@
 /*
 Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
 import (
+	"fmt"
 	"os"
 
+	"github.com/madmaxieee/axon/internal/client"
+	"github.com/madmaxieee/axon/internal/proto"
+	"github.com/openai/openai-go/v3"
 	"github.com/spf13/cobra"
 )
-
-
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -22,9 +23,33 @@ examples and usage of using your application. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+
+	Run: func(cmd *cobra.Command, args []string) {
+		sysprompt := "Share only a brief description of the place in 50 words. Then immediately make some tool calls and announce them."
+
+		question := "Tell me about Greece's largest city."
+
+		client := client.NewClient()
+
+		stream := client.Request(cmd.Context(), proto.Request{
+			Messages: []openai.ChatCompletionMessageParamUnion{
+				openai.SystemMessage(sysprompt),
+				openai.UserMessage(question),
+			},
+		})
+
+		completion, err := stream.Collect(
+			func(chunk openai.ChatCompletionChunk) {
+				_ = fmt.Errorf("%s", chunk.Choices[0].Delta.Content)
+			},
+		)
+
+		if err != nil {
+			panic(err)
+		}
+
+		println(completion.Choices[0].Message.Content)
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -45,7 +70,5 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
-
-
