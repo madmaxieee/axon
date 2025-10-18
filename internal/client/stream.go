@@ -1,8 +1,6 @@
 package client
 
 import (
-	"fmt"
-
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/packages/ssestream"
 )
@@ -28,22 +26,32 @@ func (s *Stream) Collect(onChunk func(chunk openai.ChatCompletionChunk)) (openai
 
 		acc.AddChunk(chunk)
 
+		// When this fires, the current chunk value will not contain content data
 		if _, ok := acc.JustFinishedContent(); ok {
-			_ = fmt.Errorf("finish-event: Content stream finished")
+			println()
+			println("finish-event: Content stream finished")
 		}
 
 		if refusal, ok := acc.JustFinishedRefusal(); ok {
-			_ = fmt.Errorf("finish-event: refusal stream finished: %v", refusal)
+			println()
+			println("finish-event: refusal stream finished:", refusal)
+			println()
 		}
 
 		if tool, ok := acc.JustFinishedToolCall(); ok {
-			_ = fmt.Errorf("finish-event: tool call stream finished: %v", tool)
+			println("finish-event: tool call stream finished:", tool.Index, tool.Name, tool.Arguments)
 		}
 
+		// It's best to use chunks after handling JustFinished events.
+		// Here we print the delta of the content, if it exists.
 		if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
 			onChunk(chunk)
 		}
 	}
 
-	return acc.ChatCompletion, stream.Err()
+	if err := stream.Err(); err != nil {
+		return openai.ChatCompletion{}, err
+	}
+
+	return acc.ChatCompletion, nil
 }

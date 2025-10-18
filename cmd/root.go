@@ -25,9 +25,9 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
-		sysprompt := "Share only a brief description of the place in 50 words. Then immediately make some tool calls and announce them."
+		sysprompt := "Output the requested bible verse and no more explanation."
 
-		question := "Tell me about Greece's largest city."
+		question := "Genisisl 1:1-5"
 
 		client := client.NewClient()
 
@@ -40,15 +40,17 @@ to quickly create a Cobra application.`,
 
 		completion, err := stream.Collect(
 			func(chunk openai.ChatCompletionChunk) {
-				_ = fmt.Errorf("%s", chunk.Choices[0].Delta.Content)
+				print(chunk.Choices[0].Delta.Content)
 			},
 		)
-
 		if err != nil {
 			panic(err)
 		}
 
-		println(completion.Choices[0].Message.Content)
+		_, err = fmt.Print(completion.Choices[0].Message.Content)
+		if err != nil {
+			panic(err)
+		}
 	},
 }
 
