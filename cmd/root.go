@@ -4,14 +4,20 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
+	"io"
 	"os"
+	"strings"
 
-	"github.com/madmaxieee/axon/internal/client"
-	"github.com/madmaxieee/axon/internal/proto"
-	"github.com/openai/openai-go/v3"
+	"github.com/madmaxieee/axon/internal/config"
 	"github.com/spf13/cobra"
 )
+
+type Flags struct {
+	ConfigFilePath string
+	Pattern        string
+}
+
+var flags Flags
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -25,29 +31,29 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
-		sysprompt := "Output the requested bible verse and no more explanation."
-
-		question := "Genisisl 1:1-5"
-
-		client := client.NewClient()
-
-		stream := client.Request(cmd.Context(), proto.Request{
-			Messages: []openai.ChatCompletionMessageParamUnion{
-				openai.SystemMessage(sysprompt),
-				openai.UserMessage(question),
-			},
-		})
-
-		completion, err := stream.Collect(
-			func(chunk openai.ChatCompletionChunk) {
-				print(chunk.Choices[0].Delta.Content)
-			},
-		)
+		cfg, err := config.EnsureConfig(&flags.ConfigFilePath)
 		if err != nil {
 			panic(err)
 		}
 
-		_, err = fmt.Print(completion.Choices[0].Message.Content)
+		stdin, err := ReadStdinIfPiped()
+		if err != nil {
+			panic(err)
+		}
+
+		promptString := strings.Join(args, " ")
+		prompt := &promptString
+		if strings.TrimSpace(promptString) == "" {
+			prompt = nil
+		}
+
+		pattern := cfg.GetPatternByName(flags.Pattern)
+		output, err := pattern.Run(cmd.Context(), cfg, stdin, prompt)
+		if err != nil {
+			panic(err)
+		}
+
+		_, err = io.WriteString(os.Stdout, output)
 		if err != nil {
 			panic(err)
 		}
@@ -64,13 +70,27 @@ func Execute() {
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
+	// TODO: populate default config path
+	rootCmd.PersistentFlags().StringVarP(&flags.ConfigFilePath, "config", "c", "", "config file (default is $XDG_CONFIG_HOME/axon/config.toml)")
+	rootCmd.Flags().StringVarP(&flags.Pattern, "pattern", "p", "", "pattern to use")
+}
 
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.axon.yaml)")
+func ReadStdinIfPiped() (*string, error) {
+	stat, err := os.Stdin.Stat()
+	if err != nil {
+		return nil, err
+	}
 
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Check if stdin is being piped (non-terminal)
+	if (stat.Mode() & os.ModeCharDevice) == 0 {
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return nil, err
+		}
+		s := string(data)
+		return &s, nil
+	}
+
+	// Nothing piped in
+	return nil, nil
 }
