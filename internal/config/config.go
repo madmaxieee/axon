@@ -67,6 +67,10 @@ func NewConfigFromTOML(data []byte) (*Config, error) {
 func EnsureConfig(configFilePath *string) (*Config, error) {
 	data, err := os.ReadFile(*configFilePath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			// TODO: implement get default config
+			return &Config{}, nil
+		}
 		return nil, err
 	}
 	return NewConfigFromTOML(data)

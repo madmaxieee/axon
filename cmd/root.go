@@ -6,15 +6,19 @@ package cmd
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/adrg/xdg"
 	"github.com/madmaxieee/axon/internal/config"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 type Flags struct {
 	ConfigFilePath string
 	Pattern        string
+	ShowLast       bool
 }
 
 var flags Flags
@@ -36,6 +40,19 @@ to quickly create a Cobra application.`,
 			panic(err)
 		}
 
+		if flags.ShowLast {
+			lastOutputPath, err := GetLastOutputPath()
+			if err != nil {
+				panic(err)
+			}
+			data, err := os.ReadFile(lastOutputPath)
+			if err != nil {
+				panic(err)
+			}
+			_, err = os.Stdout.Write(data)
+			return
+		}
+
 		stdin, err := ReadStdinIfPiped()
 		if err != nil {
 			panic(err)
@@ -53,10 +70,19 @@ to quickly create a Cobra application.`,
 			panic(err)
 		}
 
-		_, err = io.WriteString(os.Stdout, output)
+		// only print to stdout if it is not a tty
+		if !term.IsTerminal(int(os.Stdout.Fd())) {
+			_, err = io.WriteString(os.Stdout, output)
+			if err != nil {
+				panic(err)
+			}
+		}
+
+		lastOutputPath, err := GetLastOutputPath()
 		if err != nil {
 			panic(err)
 		}
+		err = os.WriteFile(lastOutputPath, []byte(output), 0644)
 	},
 }
 
@@ -70,9 +96,15 @@ func Execute() {
 }
 
 func init() {
-	// TODO: populate default config path
-	rootCmd.PersistentFlags().StringVarP(&flags.ConfigFilePath, "config", "c", "", "config file (default is $XDG_CONFIG_HOME/axon/config.toml)")
+	rootCmd.PersistentFlags().StringVarP(
+		&flags.ConfigFilePath,
+		"config",
+		"c",
+		filepath.Join(xdg.ConfigHome, "axon", "config.toml"),
+		"config file (default is $XDG_CONFIG_HOME/axon/config.toml)",
+	)
 	rootCmd.Flags().StringVarP(&flags.Pattern, "pattern", "p", "", "pattern to use")
+	rootCmd.Flags().BoolVarP(&flags.ShowLast, "show-last", "S", false, "show last output")
 }
 
 func ReadStdinIfPiped() (*string, error) {
@@ -93,4 +125,8 @@ func ReadStdinIfPiped() (*string, error) {
 
 	// Nothing piped in
 	return nil, nil
+}
+
+func GetLastOutputPath() (string, error) {
+	return xdg.CacheFile("axon/last_output.txt")
 }

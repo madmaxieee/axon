@@ -3,9 +3,11 @@ module github.com/madmaxieee/axon
 go 1.24.4
 
 require (
+	github.com/adrg/xdg v0.5.3
 	github.com/openai/openai-go/v3 v3.4.0
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/spf13/cobra v1.10.1
+	golang.org/x/term v0.36.0
 )
 
 require (
@@ -15,4 +17,5 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
+	golang.org/x/sys v0.37.0 // indirect
 )
