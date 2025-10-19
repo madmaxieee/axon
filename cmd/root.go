@@ -101,7 +101,7 @@ func init() {
 		"config",
 		"c",
 		filepath.Join(xdg.ConfigHome, "axon", "config.toml"),
-		"config file (default is $XDG_CONFIG_HOME/axon/config.toml)",
+		"path to config file",
 	)
 	rootCmd.Flags().StringVarP(&flags.Pattern, "pattern", "p", "default", "pattern to use")
 	rootCmd.Flags().BoolVarP(&flags.ShowLast, "show-last", "S", false, "show last output")
