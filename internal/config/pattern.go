@@ -75,19 +75,26 @@ func (step *AIStep) Run(ctx context.Context, cfg *Config, client *client.Client,
 		return nil, fmt.Errorf("prompt %s has both content and template defined", step.Prompt)
 	}
 
-	var promptStr string
-	if prompt.Content != nil {
-		promptStr = *prompt.Content
-	} else if prompt.Template != nil {
-		tmpl := template.Must(template.New("prompt").Parse(*prompt.Template))
-		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, templateArgs); err != nil {
-			return nil, err
-		}
-		promptStr = buf.String()
-	} else {
-		return nil, fmt.Errorf("no prompt or template defined in AIStep")
+	var templateStr string
+	if prompt.Template != nil {
+		templateStr = *prompt.Template
+	} else if prompt.Content != nil {
+		templateStr = *prompt.Content
+		templateStr += `
+# INPUT:
+
+{{ .PROMPT }}
+
+{{ .STDIN }}
+`
 	}
+
+	tmpl := template.Must(template.New("prompt").Parse(templateStr))
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, templateArgs); err != nil {
+		return nil, err
+	}
+	promptStr := buf.String()
 
 	stream := client.Request(ctx, proto.Request{
 		Messages: []openai.ChatCompletionMessageParamUnion{
