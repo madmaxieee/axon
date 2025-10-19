@@ -20,6 +20,8 @@ type Flags struct {
 
 var flags Flags
 
+// TODO: add completion for available patterns
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use: "axon",
@@ -28,6 +30,7 @@ var rootCmd = &cobra.Command{
 	Long: `Axon is a command-line tool that leverages the power of LLMs to automate tasks.
 It's designed to be a versatile and scriptable tool that can be easily integrated into your workflows.`,
 
+	// TODO: handle errors more gracefully
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg, err := config.EnsureConfig(&flags.ConfigFilePath)
 		if err != nil {

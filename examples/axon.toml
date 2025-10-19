@@ -1,2 +1,4 @@
 [general]
 model = "openai/gpt-4o"
+
+# TODO: add example for summarization
