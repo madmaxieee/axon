@@ -70,6 +70,10 @@ to quickly create a Cobra application.`,
 			panic(err)
 		}
 
+		if output == "" {
+			println("<empty response>")
+		}
+
 		// only print to stdout if it is not a tty
 		if !term.IsTerminal(int(os.Stdout.Fd())) {
 			_, err = io.WriteString(os.Stdout, output)
@@ -113,8 +117,7 @@ func ReadStdinIfPiped() (*string, error) {
 		return nil, err
 	}
 
-	// Check if stdin is being piped (non-terminal)
-	if (stat.Mode() & os.ModeCharDevice) == 0 {
+	if !term.IsTerminal(int(os.Stdin.Fd())) && (stat.Mode()&os.ModeCharDevice) == 0 {
 		data, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return nil, err
@@ -123,7 +126,6 @@ func ReadStdinIfPiped() (*string, error) {
 		return &s, nil
 	}
 
-	// Nothing piped in
 	return nil, nil
 }
 

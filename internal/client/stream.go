@@ -26,24 +26,16 @@ func (s *Stream) Collect(onChunk func(chunk openai.ChatCompletionChunk)) (openai
 
 		acc.AddChunk(chunk)
 
-		// When this fires, the current chunk value will not contain content data
 		if _, ok := acc.JustFinishedContent(); ok {
-			println()
-			println("finish-event: Content stream finished")
+			break
 		}
 
-		if refusal, ok := acc.JustFinishedRefusal(); ok {
-			println()
-			println("finish-event: refusal stream finished:", refusal)
-			println()
+		if _, ok := acc.JustFinishedRefusal(); ok {
 		}
 
-		if tool, ok := acc.JustFinishedToolCall(); ok {
-			println("finish-event: tool call stream finished:", tool.Index, tool.Name, tool.Arguments)
+		if _, ok := acc.JustFinishedToolCall(); ok {
 		}
 
-		// It's best to use chunks after handling JustFinished events.
-		// Here we print the delta of the content, if it exists.
 		if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
 			onChunk(chunk)
 		}
