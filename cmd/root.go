@@ -1,6 +1,3 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -25,14 +22,11 @@ var flags Flags
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "axon",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use: "axon",
+	// TODO: come up with a better description
+	Short: "A CLI tool to automate tasks with LLMs",
+	Long: `Axon is a command-line tool that leverages the power of LLMs to automate tasks.
+It's designed to be a versatile and scriptable tool that can be easily integrated into your workflows.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg, err := config.EnsureConfig(&flags.ConfigFilePath)

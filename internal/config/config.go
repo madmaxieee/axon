@@ -245,6 +245,7 @@ func (prov *ProviderConfig) GetAPIKey() (*string, error) {
 	return nil, errors.New("no API key or environment variable specified for provider " + prov.Name)
 }
 
+// TODO: read and combine all config files from $XDG_CONFIG_HOME/axon/
 func EnsureConfig(configFilePath *string) (*Config, error) {
 	data, err := os.ReadFile(*configFilePath)
 
