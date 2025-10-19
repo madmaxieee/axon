@@ -59,9 +59,11 @@ to quickly create a Cobra application.`,
 		}
 
 		promptString := strings.Join(args, " ")
-		prompt := &promptString
-		if strings.TrimSpace(promptString) == "" {
-			prompt = nil
+		prompt := removeWhitespace(promptString)
+
+		if stdin == nil && prompt == nil && flags.Pattern == "default" {
+			println("No input provided. Use --help for usage information.")
+			return
 		}
 
 		pattern := cfg.GetPatternByName(flags.Pattern)
@@ -107,7 +109,7 @@ func init() {
 		filepath.Join(xdg.ConfigHome, "axon", "config.toml"),
 		"config file (default is $XDG_CONFIG_HOME/axon/config.toml)",
 	)
-	rootCmd.Flags().StringVarP(&flags.Pattern, "pattern", "p", "", "pattern to use")
+	rootCmd.Flags().StringVarP(&flags.Pattern, "pattern", "p", "default", "pattern to use")
 	rootCmd.Flags().BoolVarP(&flags.ShowLast, "show-last", "S", false, "show last output")
 }
 
@@ -123,7 +125,7 @@ func ReadStdinIfPiped() (*string, error) {
 			return nil, err
 		}
 		s := string(data)
-		return &s, nil
+		return removeWhitespace(s), nil
 	}
 
 	return nil, nil
@@ -131,4 +133,11 @@ func ReadStdinIfPiped() (*string, error) {
 
 func GetLastOutputPath() (string, error) {
 	return xdg.CacheFile("axon/last_output.txt")
+}
+
+func removeWhitespace(str string) *string {
+	if strings.TrimSpace(str) == "" {
+		return nil
+	}
+	return &str
 }
