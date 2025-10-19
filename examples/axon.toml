@@ -1,7 +1,2 @@
 [general]
 model = "openai/gpt-4o"
-
-[[providers]]
-name = "openai"
-api_key = "apikey"
-api_key_env = "OPENAI_API_KEY"

@@ -27,9 +27,40 @@ func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *s
 		templateArgs["PROMPT"] = ""
 	}
 
-	// TODO: support configurable client options
-	// TODO: like model, provider, temperature, etc.
-	client := client.NewClient()
+	providerName, err := cfg.GetProviderName()
+	if err != nil {
+		return "", err
+	}
+
+	providerCfg := cfg.GetProviderByName(providerName)
+	if providerCfg == nil {
+		return "", fmt.Errorf("provider %s not found", providerName)
+	}
+
+	baseURL := providerCfg.BaseURL
+	if baseURL == nil {
+		return "", fmt.Errorf("base URL for provider %s not found", providerName)
+	}
+
+	modelName, err := cfg.GetModelName()
+	if err != nil {
+		return "", err
+	}
+
+	apiKey, err := providerCfg.GetAPIKey()
+	if apiKey == nil {
+		if err != nil {
+			println(err.Error())
+		}
+		return "", fmt.Errorf("API key for provider %s not found", providerName)
+	}
+
+	client := client.NewClient(client.ClientOptions{
+		ProviderName: providerName,
+		ModelName:    modelName,
+		BaseURL:      *providerCfg.BaseURL,
+		APIKey:       *apiKey,
+	})
 
 	for _, step := range p.Steps {
 		useStdin := true

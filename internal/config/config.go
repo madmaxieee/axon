@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"os"
+	"strings"
 
 	"github.com/madmaxieee/axon/internal/utils"
 	"github.com/pelletier/go-toml/v2"
@@ -60,6 +61,9 @@ type AIStep struct {
 
 var defaultConfig = Config{
 	ConfigFile: &ConfigFile{
+		General: GeneralConfig{
+			Model: utils.StringPtr("openai/gpt-4o"),
+		},
 		Providers: []ProviderConfig{
 			{
 				Name:      "openai",
@@ -69,7 +73,7 @@ var defaultConfig = Config{
 			},
 			{
 				Name:      "google",
-				BaseURL:   utils.StringPtr("https://generativelanguage.googleapis.com/v1beta2"),
+				BaseURL:   utils.StringPtr("https://generativelanguage.googleapis.com/v1beta"),
 				APIKey:    nil,
 				APIKeyEnv: utils.StringPtr("GOOGLE_API_KEY"),
 			},
@@ -93,10 +97,6 @@ You are an expert at interpreting the heart and spirit of a question and answeri
 - Deeply understand what's being asked.
 
 - Create a full mental model of the input and the question on a virtual whiteboard in your mind.
-
-- If the question is suitable to answer in bullet lists, answer the question with 3-5 concise bullet points of 10 words each.
-
-- If the user request other formats (like code, essay, etc), answer in that format.
 
 # OUTPUT INSTRUCTIONS
 
@@ -143,6 +143,31 @@ func (cfg *Config) GetProviderByName(name string) *ProviderConfig {
 		}
 	}
 	return nil
+}
+
+func parseModelString(modelStr string) (string, string, error) {
+	parts := strings.SplitN(modelStr, "/", 2)
+	if len(parts) != 2 {
+		return "", "", errors.New("invalid model string format, expected provider/model, e.g. openai/gpt-4o")
+	}
+	// provider, model
+	return parts[0], parts[1], nil
+}
+
+func (cfg *Config) GetProviderName() (string, error) {
+	provider, _, err := parseModelString(*cfg.General.Model)
+	if err != nil {
+		return "", err
+	}
+	return provider, nil
+}
+
+func (cfg *Config) GetModelName() (string, error) {
+	_, model, err := parseModelString(*cfg.General.Model)
+	if err != nil {
+		return "", err
+	}
+	return model, nil
 }
 
 func (cfg *Config) Override(override *Config) error {
@@ -206,16 +231,18 @@ func (prov *ProviderConfig) Override(override *ProviderConfig) error {
 	return nil
 }
 
-func (prov *ProviderConfig) GetAPIKey() *string {
+func (prov *ProviderConfig) GetAPIKey() (*string, error) {
 	if prov.APIKey != nil {
-		return prov.APIKey
+		return prov.APIKey, nil
 	}
 	if prov.APIKeyEnv != nil {
 		if value, exists := os.LookupEnv(*prov.APIKeyEnv); exists {
-			return &value
+			return &value, nil
+		} else {
+			return nil, errors.New("environment variable " + *prov.APIKeyEnv + " not set")
 		}
 	}
-	return nil
+	return nil, errors.New("no API key or environment variable specified for provider " + prov.Name)
 }
 
 func EnsureConfig(configFilePath *string) (*Config, error) {
