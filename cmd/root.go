@@ -12,6 +12,7 @@ import (
 	"golang.org/x/term"
 )
 
+// TODO: add show pattern flag to print the details of the pattern being used
 type Flags struct {
 	ConfigFilePath string
 	Pattern        string
@@ -19,10 +20,8 @@ type Flags struct {
 }
 
 var flags Flags
+var cfg *config.Config
 
-// TODO: add completion for available patterns
-
-// rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use: "axon",
 	// TODO: come up with a better description
@@ -32,11 +31,6 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 
 	// TODO: handle errors more gracefully
 	Run: func(cmd *cobra.Command, args []string) {
-		cfg, err := config.EnsureConfig(&flags.ConfigFilePath)
-		if err != nil {
-			panic(err)
-		}
-
 		if flags.ShowLast {
 			lastOutputPath, err := GetLastOutputPath()
 			if err != nil {
@@ -91,8 +85,6 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 	},
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -110,6 +102,27 @@ func init() {
 	)
 	rootCmd.Flags().StringVarP(&flags.Pattern, "pattern", "p", "default", "pattern to use")
 	rootCmd.Flags().BoolVarP(&flags.ShowLast, "show-last", "S", false, "show last output")
+
+	if strings.HasPrefix(flags.ConfigFilePath, "~/") {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			panic(err)
+		}
+		flags.ConfigFilePath = filepath.Join(homeDir, flags.ConfigFilePath[1:])
+	}
+
+	var err error
+	cfg, err = config.EnsureConfig(&flags.ConfigFilePath)
+	if err != nil {
+		panic(err)
+	}
+
+	_ = rootCmd.RegisterFlagCompletionFunc("pattern", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if cfg != nil {
+			return cfg.GetAllPatternNames(), cobra.ShellCompDirectiveDefault
+		}
+		return []string{}, cobra.ShellCompDirectiveDefault
+	})
 }
 
 func ReadStdinIfPiped() (*string, error) {

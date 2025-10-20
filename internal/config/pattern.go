@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"text/template"
 
 	"github.com/madmaxieee/axon/internal/client"
@@ -16,7 +17,7 @@ import (
 )
 
 func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *string) (string, error) {
-	templateArgs := make(map[string]string)
+	templateArgs := make(proto.TemplateArgs)
 	if stdin != nil {
 		templateArgs["INPUT"] = *stdin
 	} else {
@@ -91,10 +92,10 @@ func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *s
 	return templateArgs["INPUT"], nil
 }
 
-func (step *AIStep) Run(ctx context.Context, cfg *Config, client *client.Client, templateArgs *map[string]string) (*string, error) {
+func (step *AIStep) Run(ctx context.Context, cfg *Config, client *client.Client, templateArgs *proto.TemplateArgs) (*string, error) {
 	var prompt *Prompt
 
-	if len(step.Prompt) > 1 && step.Prompt[0] == '@' {
+	if strings.HasPrefix(step.Prompt, "@") {
 		promptName := step.Prompt[1:]
 		var err error
 		prompt, err = cfg.GetPromptByName(promptName)
@@ -155,13 +156,13 @@ func (step *AIStep) Run(ctx context.Context, cfg *Config, client *client.Client,
 	return &completion.Choices[0].Message.Content, nil
 }
 
-func (step *CommandStep) Run(templateArgs *map[string]string, needInput bool) (*string, error) {
+func (step *CommandStep) Run(templateArgs *proto.TemplateArgs, needInput bool) (*string, error) {
 	shell := os.Getenv("SHELL")
 	if shell == "" {
 		shell = "/bin/sh"
 	}
 
-	shellQuotedArgs := make(map[string]string)
+	shellQuotedArgs := make(proto.TemplateArgs)
 	for k, v := range *templateArgs {
 		shellQuotedArgs[k] = utils.ShellQuote(v)
 	}

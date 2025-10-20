@@ -133,6 +133,14 @@ func (cfg *Config) GetPatternByName(name string) *Pattern {
 	return nil
 }
 
+func (cfg *Config) GetAllPatternNames() []string {
+	names := make([]string, 0, len(cfg.Patterns))
+	for _, pattern := range cfg.Patterns {
+		names = append(names, pattern.Name)
+	}
+	return names
+}
+
 func (prompt *Prompt) LoadContent() (bool, error) {
 	if prompt.loaded {
 		return true, nil
@@ -330,7 +338,6 @@ func (cfg *GeneralConfig) Merge(other *GeneralConfig) error {
 	return nil
 }
 
-// TODO: read and combine all config files from $XDG_CONFIG_HOME/axon/
 func EnsureConfig(configFilePath *string) (*Config, error) {
 	data, err := os.ReadFile(*configFilePath)
 

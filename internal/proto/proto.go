@@ -11,3 +11,13 @@ type Request struct {
 	Stop           []string
 	MaxTokens      *int64
 }
+
+type TemplateArgs map[string]string
+
+func (m TemplateArgs) Get(key string) string {
+	v, ok := m[key]
+	if !ok {
+		return ""
+	}
+	return v
+}

@@ -13,7 +13,6 @@ type Client struct {
 	opts ClientOptions
 }
 
-// TODO: support more configurable client options
 type ClientOptions struct {
 	ProviderName string
 	ModelName    string
