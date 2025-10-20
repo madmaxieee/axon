@@ -72,10 +72,6 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 			panic(err)
 		}
 
-		if output == "" {
-			println("<empty response>")
-		}
-
 		// only print to stdout if it is not a tty
 		if !term.IsTerminal(int(os.Stdout.Fd())) {
 			_, err = io.WriteString(os.Stdout, output)
@@ -89,6 +85,9 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 			panic(err)
 		}
 		err = os.WriteFile(lastOutputPath, []byte(output), 0644)
+		if err != nil {
+			panic(err)
+		}
 	},
 }
 

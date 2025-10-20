@@ -11,6 +11,7 @@ import (
 
 	"github.com/madmaxieee/axon/internal/client"
 	"github.com/madmaxieee/axon/internal/proto"
+	"github.com/madmaxieee/axon/internal/utils"
 	"github.com/openai/openai-go/v3"
 )
 
@@ -91,13 +92,24 @@ func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *s
 }
 
 func (step *AIStep) Run(ctx context.Context, cfg *Config, client *client.Client, templateArgs *map[string]string) (*string, error) {
-	prompt, err := cfg.GetPromptByName(step.Prompt)
-	if err != nil {
-		return nil, err
-	}
+	var prompt *Prompt
 
-	if prompt == nil {
-		return nil, fmt.Errorf("prompt %s not found", step.Prompt)
+	if len(step.Prompt) > 1 && step.Prompt[0] == '@' {
+		promptName := step.Prompt[1:]
+		var err error
+		prompt, err = cfg.GetPromptByName(promptName)
+		if err != nil {
+			return nil, err
+		}
+		if prompt == nil {
+			return nil, fmt.Errorf("prompt %s not found", step.Prompt)
+		}
+	} else {
+		prompt = &Prompt{
+			System: &step.Prompt,
+			User:   nil,
+			loaded: true,
+		}
 	}
 
 	messages := []openai.ChatCompletionMessageParamUnion{}
@@ -149,7 +161,19 @@ func (step *CommandStep) Run(templateArgs *map[string]string, needInput bool) (*
 		shell = "/bin/sh"
 	}
 
-	cmd := exec.Command(shell, "-c", step.Command)
+	shellQuotedArgs := make(map[string]string)
+	for k, v := range *templateArgs {
+		shellQuotedArgs[k] = utils.ShellQuote(v)
+	}
+
+	tmpl := template.Must(template.New("command").Parse(step.Command))
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, shellQuotedArgs); err != nil {
+		return nil, err
+	}
+	command := buf.String()
+
+	cmd := exec.Command(shell, "-c", command)
 
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout

@@ -18,12 +18,43 @@ api_key_env = "ANTHROPIC_API_KEY"
 
 [[patterns]]
 name = "default"
-steps = [{ prompt = "default" }]
+steps = [
+  { prompt = """
+# IDENTITY and PURPOSE
+
+You are an expert at interpreting the heart and spirit of a question and answering in an insightful manner.
+
+# STEPS
+
+- Deeply understand what's being asked.
+
+- Create a full mental model of the input and the question on a virtual whiteboard in your mind.
+
+# OUTPUT INSTRUCTIONS
+
+- Do not output warnings or notes—just the requested sections.
+""" },
+]
+
+[[pattern]]
+name = "summarize"
+steps = [{ prompt = "@summarize" }]
 
 [[patterns]]
-name = "git_commit_message"
 # usage: git diff | axon --pattern=git_commit_message
+name = "git_commit_message"
 steps = [
   { command = "git log --max-count=10", output = "commits", needs_input = false },
-  { prompt = "commit_message" },
+  { prompt = "@commit_message", output = "commit_message" },
+  { command = "git commit -e -m {{ .commit_message }}", needs_input = true },
+]
+
+[[patterns]]
+# usage: jj log -p | axon --pattern=jj_desc
+name = "jj_desc"
+steps = [
+  { command = "jj log -T builtin_log_detailed -n 10", output = "commits", needs_input = false },
+  { prompt = "@commit_message", output = "commit_message" },
+  # automatically shell quoted
+  { command = "jj desc -m {{ .commit_message }}", needs_input = false },
 ]
