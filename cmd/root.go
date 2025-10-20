@@ -64,6 +64,9 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 		}
 
 		pattern := cfg.GetPatternByName(flags.Pattern)
+		if pattern == nil {
+			panic("pattern not found: " + flags.Pattern)
+		}
 		output, err := pattern.Run(cmd.Context(), cfg, stdin, prompt)
 		if err != nil {
 			panic(err)
@@ -103,7 +106,7 @@ func init() {
 		&flags.ConfigFilePath,
 		"config",
 		"c",
-		filepath.Join(xdg.ConfigHome, "axon", "config.toml"),
+		filepath.Join(xdg.ConfigHome, "axon", "axon.toml"),
 		"path to config file",
 	)
 	rootCmd.Flags().StringVarP(&flags.Pattern, "pattern", "p", "default", "pattern to use")

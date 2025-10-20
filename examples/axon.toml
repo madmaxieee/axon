@@ -1,4 +1,29 @@
 [general]
 model = "openai/gpt-4o"
 
-# TODO: add example for summarization
+[[providers]]
+name = "openai"
+base_url = "https://api.openai.com/v1"
+api_key_env = "OPENAI_API_KEY"
+
+[[providers]]
+name = "google"
+base_url = "https://generativelanguage.googleapis.com/v1beta"
+api_key_env = "GOOGLE_API_KEY"
+
+[[providers]]
+name = "anthropic"
+base_url = "https://api.anthropic.com/v1"
+api_key_env = "ANTHROPIC_API_KEY"
+
+[[patterns]]
+name = "default"
+steps = [{ prompt = "default" }]
+
+[[patterns]]
+name = "git_commit_message"
+# usage: git diff | axon --pattern=git_commit_message
+steps = [
+  { command = "git log --max-count=10", output = "commits", needs_input = false },
+  { prompt = "commit_message" },
+]

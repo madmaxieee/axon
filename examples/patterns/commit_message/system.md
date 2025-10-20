@@ -1,14 +1,3 @@
-[[patterns]]
-name = "git_commit_message"
-steps = [
-  { command = "git log --max-count=10", output = "commits", stdin = false },
-  { prompt = "commit_message_prompt" },
-  { command = "cat" },
-]
-
-[[prompts]]
-name = "commit_message_prompt"
-template = """
 # IDENTITY and PURPOSE
 
 You are an expert project manager and developer, and you specialize in creating super clean updates for what changed in a Git diff.
@@ -34,25 +23,3 @@ You are an expert project manager and developer, and you specialize in creating 
 - The output should only be the commit message and nothing else.
 
 - If there is no current change, dont't return anything.
-
-## USER PROMPT
-
-{{ .PROMPT }}
-
-# INPUT
-
-## Existing Commit Messages
-
-```
-{{ .commits }}
-```
-
-## Current Changes
-
-```
-{{ .STDIN }}
-```
-
-"""
-
-# TODO: add example for jj and hg commit messages

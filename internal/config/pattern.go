@@ -17,9 +17,9 @@ import (
 func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *string) (string, error) {
 	templateArgs := make(map[string]string)
 	if stdin != nil {
-		templateArgs["STDIN"] = *stdin
+		templateArgs["INPUT"] = *stdin
 	} else {
-		templateArgs["STDIN"] = ""
+		templateArgs["INPUT"] = ""
 	}
 	if prompt != nil {
 		templateArgs["PROMPT"] = *prompt
@@ -63,17 +63,17 @@ func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *s
 	})
 
 	for _, step := range p.Steps {
-		useStdin := true
-		if step.Stdin != nil {
-			useStdin = *step.Stdin
+		needsInput := true
+		if step.NeedsInput != nil {
+			needsInput = *step.NeedsInput
 		}
 
 		var output *string
 		var err error
 		if step.AIStep != nil {
-			output, err = step.AIStep.Run(ctx, cfg, client, &templateArgs, useStdin)
+			output, err = step.AIStep.Run(ctx, cfg, client, &templateArgs)
 		} else if step.CommandStep != nil {
-			output, err = step.CommandStep.Run(&templateArgs, useStdin)
+			output, err = step.CommandStep.Run(&templateArgs, needsInput)
 		} else {
 			return "", fmt.Errorf("step has neither AIStep nor CommandStep defined")
 		}
@@ -83,55 +83,53 @@ func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *s
 		if step.Output != nil {
 			templateArgs[*step.Output] = *output
 		} else {
-			templateArgs["STDIN"] = *output
+			templateArgs["INPUT"] = *output
 		}
 	}
 
-	return templateArgs["STDIN"], nil
+	return templateArgs["INPUT"], nil
 }
 
-func (step *AIStep) Run(ctx context.Context, cfg *Config, client *client.Client, templateArgs *map[string]string, useStdin bool) (*string, error) {
-
-	prompt := cfg.GetPromptByName(step.Prompt)
+func (step *AIStep) Run(ctx context.Context, cfg *Config, client *client.Client, templateArgs *map[string]string) (*string, error) {
+	prompt, err := cfg.GetPromptByName(step.Prompt)
+	if err != nil {
+		return nil, err
+	}
 
 	if prompt == nil {
 		return nil, fmt.Errorf("prompt %s not found", step.Prompt)
 	}
 
-	// TODO: certralize validation logic
-	if prompt.Content == nil && prompt.Template == nil {
-		return nil, fmt.Errorf("prompt %s has no content or template", step.Prompt)
-	}
-	if prompt.Content != nil && prompt.Template != nil {
-		return nil, fmt.Errorf("prompt %s has both content and template defined", step.Prompt)
-	}
+	messages := []openai.ChatCompletionMessageParamUnion{}
 
-	var templateStr string
-	if prompt.Template != nil {
-		templateStr = *prompt.Template
-	} else if prompt.Content != nil {
-		templateStr = *prompt.Content
-		templateStr += `
-# INPUT:
-
-{{ .PROMPT }}
-
-{{ .STDIN }}
-`
+	if prompt.System != nil {
+		tmpl := template.Must(template.New("system").Parse(*prompt.System))
+		var buf bytes.Buffer
+		if err := tmpl.Execute(&buf, templateArgs); err != nil {
+			return nil, err
+		}
+		systemPrompt := buf.String()
+		messages = append(messages, openai.SystemMessage(systemPrompt))
 	}
 
-	tmpl := template.Must(template.New("prompt").Parse(templateStr))
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, templateArgs); err != nil {
-		return nil, err
+	if prompt.User != nil {
+		tmpl := template.Must(template.New("user").Parse(*prompt.User))
+		var buf bytes.Buffer
+		if err := tmpl.Execute(&buf, templateArgs); err != nil {
+			return nil, err
+		}
+		userPrompt := buf.String()
+		messages = append(messages, openai.UserMessage(userPrompt))
+	} else {
+		if userPrompt, ok := (*templateArgs)["PROMPT"]; ok && userPrompt != "" {
+			messages = append(messages, openai.UserMessage((*templateArgs)["PROMPT"]))
+		}
+		if input, ok := (*templateArgs)["INPUT"]; ok && input != "" {
+			messages = append(messages, openai.UserMessage((*templateArgs)["INPUT"]))
+		}
 	}
-	promptStr := buf.String()
 
-	stream := client.Request(ctx, proto.Request{
-		Messages: []openai.ChatCompletionMessageParamUnion{
-			openai.UserMessage(promptStr),
-		},
-	})
+	stream := client.Request(ctx, proto.Request{Messages: messages})
 
 	completion, err := stream.Collect(
 		func(chunk openai.ChatCompletionChunk) {
@@ -145,7 +143,7 @@ func (step *AIStep) Run(ctx context.Context, cfg *Config, client *client.Client,
 	return &completion.Choices[0].Message.Content, nil
 }
 
-func (step *CommandStep) Run(templateArgs *map[string]string, useStdin bool) (*string, error) {
+func (step *CommandStep) Run(templateArgs *map[string]string, needInput bool) (*string, error) {
 	shell := os.Getenv("SHELL")
 	if shell == "" {
 		shell = "/bin/sh"
@@ -156,7 +154,7 @@ func (step *CommandStep) Run(templateArgs *map[string]string, useStdin bool) (*s
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = io.Discard
-	if stdin, ok := (*templateArgs)["STDIN"]; ok && useStdin {
+	if stdin, ok := (*templateArgs)["INPUT"]; ok && needInput {
 		cmd.Stdin = bytes.NewBufferString(stdin)
 	}
 

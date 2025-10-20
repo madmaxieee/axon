@@ -3,26 +3,29 @@ package config
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/adrg/xdg"
 	"github.com/madmaxieee/axon/internal/utils"
 	"github.com/pelletier/go-toml/v2"
 )
 
 type Config struct {
 	*ConfigFile
+	Prompts map[string]Prompt
 }
 
 type ConfigFile struct {
 	General   GeneralConfig
 	Providers []ProviderConfig
-	Prompts   []Prompt
 	Patterns  []Pattern
 }
 
 type GeneralConfig struct {
 	// in a form of provider/model
-	Model *string
+	PromptPath []string
+	Model      *string
 	// TODO: add other configs like temperature, max tokens, etc.
 }
 
@@ -34,9 +37,11 @@ type ProviderConfig struct {
 }
 
 type Prompt struct {
-	Name     string
-	Content  *string
-	Template *string
+	Name   string
+	System *string
+	User   *string
+	Path   *string
+	loaded bool
 }
 
 type Pattern struct {
@@ -47,8 +52,8 @@ type Pattern struct {
 type Step struct {
 	*CommandStep
 	*AIStep
-	Stdin  *bool
-	Output *string
+	NeedsInput *bool
+	Output     *string
 }
 
 type CommandStep struct {
@@ -60,9 +65,31 @@ type AIStep struct {
 }
 
 var defaultConfig = Config{
+	Prompts: map[string]Prompt{
+		"default": {
+			Name: "default",
+			Path: nil,
+			System: utils.StringPtr(`
+# IDENTITY and PURPOSE
+
+You are an expert at interpreting the heart and spirit of a question and answering in an insightful manner.
+
+# STEPS
+
+- Deeply understand what's being asked.
+
+- Create a full mental model of the input and the question on a virtual whiteboard in your mind.
+
+# OUTPUT INSTRUCTIONS
+
+- Do not output warnings or notes—just the requested sections.
+`),
+		},
+	},
 	ConfigFile: &ConfigFile{
 		General: GeneralConfig{
-			Model: utils.StringPtr("openai/gpt-4o"),
+			PromptPath: []string{filepath.Join(xdg.ConfigHome, "axon", "prompts")},
+			Model:      utils.StringPtr("openai/gpt-4o"),
 		},
 		Providers: []ProviderConfig{
 			{
@@ -82,27 +109,6 @@ var defaultConfig = Config{
 				BaseURL:   utils.StringPtr("https://api.anthropic.com/v1"),
 				APIKey:    nil,
 				APIKeyEnv: utils.StringPtr("ANTHROPIC_API_KEY"),
-			},
-		},
-		Prompts: []Prompt{
-			{
-				Name: "default",
-				Content: utils.StringPtr(`
-# IDENTITY and PURPOSE
-
-You are an expert at interpreting the heart and spirit of a question and answering in an insightful manner.
-
-# STEPS
-
-- Deeply understand what's being asked.
-
-- Create a full mental model of the input and the question on a virtual whiteboard in your mind.
-
-# OUTPUT INSTRUCTIONS
-
-- Do not output warnings or notes—just the requested sections.
-
-`),
 			},
 		},
 		Patterns: []Pattern{
@@ -127,13 +133,87 @@ func (cfg *Config) GetPatternByName(name string) *Pattern {
 	return nil
 }
 
-func (cfg *Config) GetPromptByName(name string) *Prompt {
-	for _, prompt := range cfg.Prompts {
-		if prompt.Name == name {
-			return &prompt
-		}
+func (prompt *Prompt) LoadContent() (bool, error) {
+	if prompt.loaded {
+		return true, nil
 	}
-	return nil
+
+	if prompt.Path == nil {
+		return false, errors.New("prompt has no content or path")
+	}
+
+	stats, err := os.Stat(*prompt.Path)
+	if err != nil {
+		return false, err
+	}
+
+	if stats.IsDir() {
+		if prompt.System == nil {
+			systemPath := filepath.Join(*prompt.Path, "system.md")
+			data, err := os.ReadFile(systemPath)
+			if err != nil {
+				return false, err
+			}
+			content := string(data)
+			prompt.System = &content
+		}
+		if prompt.User == nil {
+			userPath := filepath.Join(*prompt.Path, "user.md")
+			data, err := os.ReadFile(userPath)
+			if err != nil {
+				return false, err
+			}
+			content := string(data)
+			prompt.User = &content
+		}
+		if prompt.System == nil && prompt.User == nil {
+			return false, nil
+		}
+	} else if stats.Mode().IsRegular() {
+		data, err := os.ReadFile(*prompt.Path)
+		if err != nil {
+			return false, err
+		}
+		content := string(data)
+		prompt.System = &content
+	}
+
+	prompt.loaded = true
+	return true, nil
+}
+
+func (cfg *Config) GetPromptByName(name string) (*Prompt, error) {
+	if prompt, ok := cfg.Prompts[name]; ok {
+		prompt.LoadContent()
+		return &prompt, nil
+	}
+
+	for _, root := range cfg.General.PromptPath {
+		filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if path != root {
+				if d.Name() == name {
+					cfg.Prompts[name] = Prompt{
+						Name:   name,
+						Path:   utils.StringPtr(path),
+						loaded: false,
+						System: nil,
+						User:   nil,
+					}
+				}
+			}
+			return nil
+		})
+	}
+
+	if prompt, ok := cfg.Prompts[name]; ok {
+		prompt.LoadContent()
+		return &prompt, nil
+	} else {
+		return nil, errors.New("prompt " + name + " not found")
+	}
 }
 
 func (cfg *Config) GetProviderByName(name string) *ProviderConfig {
@@ -170,37 +250,29 @@ func (cfg *Config) GetModelName() (string, error) {
 	return model, nil
 }
 
-func (cfg *Config) Override(override *Config) error {
-	if override == nil {
+func (cfg *Config) Merge(other *Config) error {
+	if other == nil {
 		return nil
 	}
 
-	if override.General.Model != nil {
-		cfg.General.Model = override.General.Model
+	err := cfg.General.Merge(&other.General)
+	if err != nil {
+		return err
 	}
 
-	for _, overrideProvider := range override.Providers {
+	for _, overrideProvider := range other.Providers {
 		existingProvider := cfg.GetProviderByName(overrideProvider.Name)
 		if existingProvider == nil {
 			cfg.Providers = append(cfg.Providers, overrideProvider)
 		} else {
-			err := existingProvider.Override(&overrideProvider)
+			err := existingProvider.Merge(&overrideProvider)
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	for _, overridePrompt := range override.Prompts {
-		existingPrompt := cfg.GetPromptByName(overridePrompt.Name)
-		if existingPrompt == nil {
-			cfg.Prompts = append(cfg.Prompts, overridePrompt)
-		} else {
-			*existingPrompt = overridePrompt
-		}
-	}
-
-	for _, overridePattern := range override.Patterns {
+	for _, overridePattern := range other.Patterns {
 		existingPattern := cfg.GetPatternByName(overridePattern.Name)
 		if existingPattern == nil {
 			cfg.Patterns = append(cfg.Patterns, overridePattern)
@@ -212,21 +284,21 @@ func (cfg *Config) Override(override *Config) error {
 	return nil
 }
 
-func (prov *ProviderConfig) Override(override *ProviderConfig) error {
-	if override == nil {
+func (prov *ProviderConfig) Merge(other *ProviderConfig) error {
+	if other == nil {
 		return nil
 	}
-	if prov.Name != override.Name {
+	if prov.Name != other.Name {
 		return errors.New("cannot merge provider configs with different names")
 	}
-	if override.BaseURL != nil {
-		prov.BaseURL = override.BaseURL
+	if other.BaseURL != nil {
+		prov.BaseURL = other.BaseURL
 	}
-	if override.APIKey != nil {
-		prov.APIKey = override.APIKey
+	if other.APIKey != nil {
+		prov.APIKey = other.APIKey
 	}
-	if override.APIKeyEnv != nil {
-		prov.APIKeyEnv = override.APIKeyEnv
+	if other.APIKeyEnv != nil {
+		prov.APIKeyEnv = other.APIKeyEnv
 	}
 	return nil
 }
@@ -245,6 +317,19 @@ func (prov *ProviderConfig) GetAPIKey() (*string, error) {
 	return nil, errors.New("no API key or environment variable specified for provider " + prov.Name)
 }
 
+func (cfg *GeneralConfig) Merge(other *GeneralConfig) error {
+	if other == nil {
+		return nil
+	}
+	if other.Model != nil {
+		cfg.Model = other.Model
+	}
+	if other.PromptPath != nil {
+		cfg.PromptPath = append(cfg.PromptPath, other.PromptPath...)
+	}
+	return nil
+}
+
 // TODO: read and combine all config files from $XDG_CONFIG_HOME/axon/
 func EnsureConfig(configFilePath *string) (*Config, error) {
 	data, err := os.ReadFile(*configFilePath)
@@ -260,6 +345,6 @@ func EnsureConfig(configFilePath *string) (*Config, error) {
 	}
 
 	cfg := defaultConfig
-	err = cfg.Override(&Config{ConfigFile: &configFile})
+	err = cfg.Merge(&Config{ConfigFile: &configFile})
 	return &cfg, err
 }
