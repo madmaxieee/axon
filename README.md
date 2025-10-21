@@ -39,7 +39,7 @@ For more examples, check out the [examples directory](./examples)
 ## Installation
 
 ```sh
-go install github.com/madmaxieee/axon@latest -tags=release
+go install github.com/madmaxieee/axon@latest
 ```
 
 Setup shell completion:

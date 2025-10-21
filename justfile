@@ -1,5 +1,5 @@
 build:
-    go build
+    go build -tags=development
 
 build-release:
-    go build -ldflags "-s -w" -tags release
+    go build
