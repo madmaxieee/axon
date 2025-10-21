@@ -50,9 +50,9 @@ steps = [
 ]
 
 [[patterns]]
-# usage: jj log -p | axon --pattern=jj_desc
 name = "jj_desc"
 steps = [
+  { command = "jj diff --git", output = "diff", needs_input = false },
   { command = "jj log -T builtin_log_detailed -n 10", output = "commits", needs_input = false },
   { prompt = "@commit_message", output = "commit_message" },
   # automatically shell quoted

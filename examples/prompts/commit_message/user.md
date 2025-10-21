@@ -13,5 +13,6 @@
 ## Current Changes
 
 ```
+{{ .diff }}
 {{ .INPUT }}
 ```
