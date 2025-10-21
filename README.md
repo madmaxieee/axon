@@ -97,3 +97,13 @@ You are an expert at interpreting the heart and spirit of a question and answeri
 """ },
 ]
 ```
+
+## Acknowledgements
+
+Axon was heavily inspired by these amazing projects:
+
+- [mods](https://github.com/charmbracelet/mods)
+  - The basic command line ergonomics and structure of Axon is inspired by mods.
+- [fabirc](https://github.com/danielmiessler/Fabric)
+  - The prompt format used in Axon is adapted from Fabric's prompt format.
+  - You can actually point axon to fabrics pattern folders and use them directly!

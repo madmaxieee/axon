@@ -45,6 +45,8 @@ type Prompt struct {
 }
 
 type Pattern struct {
+	// TODO: add description field
+	// TODO: add step/pattern specific model config
 	Name  string
 	Steps []Step
 }
@@ -197,23 +199,30 @@ func (cfg *Config) GetPromptByName(name string) (*Prompt, error) {
 	}
 
 	for _, root := range cfg.General.PromptPath {
-		filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if path != root {
-				if d.Name() == name {
-					cfg.Prompts[name] = Prompt{
-						Name:   name,
-						Path:   utils.StringPtr(path),
-						loaded: false,
-						System: nil,
-						User:   nil,
-					}
+		entries, err := os.ReadDir(root)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				cfg.Prompts[entry.Name()] = Prompt{
+					Name:   entry.Name(),
+					Path:   utils.StringPtr(filepath.Join(root, entry.Name())),
+					loaded: false,
+					System: nil,
+					User:   nil,
+				}
+			} else if strings.HasSuffix(entry.Name(), ".md") {
+				promptName := strings.TrimSuffix(entry.Name(), ".md")
+				cfg.Prompts[promptName] = Prompt{
+					Name:   promptName,
+					Path:   utils.StringPtr(filepath.Join(root, entry.Name())),
+					loaded: false,
+					System: nil,
+					User:   nil,
 				}
 			}
-			return nil
-		})
+		}
 	}
 
 	if prompt, ok := cfg.Prompts[name]; ok {
