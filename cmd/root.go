@@ -12,10 +12,10 @@ import (
 	"golang.org/x/term"
 )
 
-// TODO: add show pattern flag to print the details of the pattern being used
 type Flags struct {
 	ConfigFilePath string
 	Pattern        string
+	Explain        bool
 	ShowLast       bool
 }
 
@@ -61,6 +61,19 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 		if pattern == nil {
 			panic("pattern not found: " + flags.Pattern)
 		}
+
+		if flags.Explain {
+			explanation, err := pattern.Explain(cmd.Context(), cfg)
+			if err != nil {
+				panic(err)
+			}
+			_, err = io.WriteString(os.Stdout, explanation)
+			if err != nil {
+				panic(err)
+			}
+			return
+		}
+
 		output, err := pattern.Run(cmd.Context(), cfg, stdin, prompt)
 		if err != nil {
 			panic(err)
@@ -102,6 +115,7 @@ func init() {
 	)
 	rootCmd.Flags().StringVarP(&flags.Pattern, "pattern", "p", "default", "pattern to use")
 	rootCmd.Flags().BoolVarP(&flags.ShowLast, "show-last", "S", false, "show last output")
+	rootCmd.Flags().BoolVarP(&flags.Explain, "explain", "e", false, "explain the chosen pattern and exit")
 
 	if strings.HasPrefix(flags.ConfigFilePath, "~/") {
 		homeDir, err := os.UserHomeDir()

@@ -92,6 +92,39 @@ func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *s
 	return templateArgs["INPUT"], nil
 }
 
+func (pattern Pattern) Explain(ctx context.Context, cfg *Config) (string, error) {
+	var explanation strings.Builder
+	explanation.WriteString(fmt.Sprintf("Pattern: %s\n\n", pattern.Name))
+	for i, step := range pattern.Steps {
+		explanation.WriteString(fmt.Sprintf("Step %d:\n", i+1))
+		if step.AIStep != nil {
+			explanation.WriteString("  Type: AI Step\n")
+			explanation.WriteString(fmt.Sprintf("  Prompt: %s\n", step.AIStep.Prompt))
+			if strings.HasPrefix(step.AIStep.Prompt, "@") {
+				promptName := step.AIStep.Prompt[1:]
+				prompt, err := cfg.GetPromptByName(promptName)
+				if err != nil {
+					return "", err
+				}
+				if prompt == nil {
+					explanation.WriteString("  (Prompt not found)\n")
+				}
+				explanation.WriteString(fmt.Sprintf("  Stored in: %s\n", *prompt.Path))
+			}
+		} else if step.CommandStep != nil {
+			explanation.WriteString("  Type: Command Step\n")
+			explanation.WriteString(fmt.Sprintf("  Command: `%s`\n", step.CommandStep.Command))
+		} else {
+			explanation.WriteString("  Type: Unknown Step\n")
+		}
+		if step.Output != nil {
+			explanation.WriteString(fmt.Sprintf("  ==> $%s\n", *step.Output))
+		}
+		explanation.WriteString("\n")
+	}
+	return explanation.String(), nil
+}
+
 func (step *AIStep) Run(ctx context.Context, cfg *Config, client *client.Client, templateArgs *proto.TemplateArgs) (*string, error) {
 	var prompt *Prompt
 
