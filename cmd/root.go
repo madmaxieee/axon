@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/adrg/xdg"
 	"github.com/madmaxieee/axon/internal/config"
+	"github.com/madmaxieee/axon/internal/utils"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -29,16 +31,15 @@ var rootCmd = &cobra.Command{
 	Long: `Axon is a command-line tool that leverages the power of LLMs to automate tasks.
 It's designed to be a versatile and scriptable tool that can be easily integrated into your workflows.`,
 
-	// TODO: handle errors more gracefully
 	Run: func(cmd *cobra.Command, args []string) {
 		if flags.ShowLast {
 			lastOutputPath, err := GetLastOutputPath()
 			if err != nil {
-				panic(err)
+				utils.HandleError(err)
 			}
 			data, err := os.ReadFile(lastOutputPath)
 			if err != nil {
-				panic(err)
+				utils.HandleError(err)
 			}
 			_, err = os.Stdout.Write(data)
 			return
@@ -46,11 +47,11 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 
 		stdin, err := ReadStdinIfPiped()
 		if err != nil {
-			panic(err)
+			utils.HandleError(err)
 		}
 
 		promptString := strings.Join(args, " ")
-		prompt := removeWhitespace(promptString)
+		prompt := utils.RemoveWhitespace(promptString)
 
 		if stdin == nil && prompt == nil && flags.Pattern == "default" {
 			println("No input provided. Use --help for usage information.")
@@ -59,41 +60,41 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 
 		pattern := cfg.GetPatternByName(flags.Pattern)
 		if pattern == nil {
-			panic("pattern not found: " + flags.Pattern)
+			utils.HandleError(errors.New("pattern not found: " + flags.Pattern))
 		}
 
 		if flags.Explain {
 			explanation, err := pattern.Explain(cmd.Context(), cfg)
 			if err != nil {
-				panic(err)
+				utils.HandleError(err)
 			}
 			_, err = io.WriteString(os.Stdout, explanation)
 			if err != nil {
-				panic(err)
+				utils.HandleError(err)
 			}
 			return
 		}
 
 		output, err := pattern.Run(cmd.Context(), cfg, stdin, prompt)
 		if err != nil {
-			panic(err)
+			utils.HandleError(err)
 		}
 
 		// only print to stdout if it is not a tty
 		if !term.IsTerminal(int(os.Stdout.Fd())) {
 			_, err = io.WriteString(os.Stdout, output)
 			if err != nil {
-				panic(err)
+				utils.HandleError(err)
 			}
 		}
 
 		lastOutputPath, err := GetLastOutputPath()
 		if err != nil {
-			panic(err)
+			utils.HandleError(err)
 		}
 		err = os.WriteFile(lastOutputPath, []byte(output), 0644)
 		if err != nil {
-			panic(err)
+			utils.HandleError(err)
 		}
 	},
 }
@@ -120,7 +121,7 @@ func init() {
 	if strings.HasPrefix(flags.ConfigFilePath, "~/") {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
-			panic(err)
+			utils.HandleError(err)
 		}
 		flags.ConfigFilePath = filepath.Join(homeDir, flags.ConfigFilePath[1:])
 	}
@@ -128,7 +129,7 @@ func init() {
 	var err error
 	cfg, err = config.EnsureConfig(&flags.ConfigFilePath)
 	if err != nil {
-		panic(err)
+		utils.HandleError(err)
 	}
 
 	_ = rootCmd.RegisterFlagCompletionFunc("pattern", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -151,7 +152,7 @@ func ReadStdinIfPiped() (*string, error) {
 			return nil, err
 		}
 		s := string(data)
-		return removeWhitespace(s), nil
+		return utils.RemoveWhitespace(s), nil
 	}
 
 	return nil, nil
@@ -159,11 +160,4 @@ func ReadStdinIfPiped() (*string, error) {
 
 func GetLastOutputPath() (string, error) {
 	return xdg.CacheFile("axon/last_output.txt")
-}
-
-func removeWhitespace(str string) *string {
-	if strings.TrimSpace(str) == "" {
-		return nil
-	}
-	return &str
 }

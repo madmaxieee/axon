@@ -1,6 +1,8 @@
 package utils
 
-import "strings"
+import (
+	"strings"
+)
 
 func StringPtr(s string) *string {
 	return &s
@@ -15,4 +17,11 @@ func ShellQuote(s string) string {
 	}
 	// Replace every ' with '\'' (close, escape single quote, reopen)
 	return "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'"
+}
+
+func RemoveWhitespace(str string) *string {
+	if strings.TrimSpace(str) == "" {
+		return nil
+	}
+	return &str
 }
