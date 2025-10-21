@@ -39,7 +39,7 @@ You are an expert at interpreting the heart and spirit of a question and answeri
 """ },
 ]
 
-[[pattern]]
+[[patterns]]
 name = "summarize"
 # or you can reference prompt files defined in the 'prompts' directory
 steps = [{ prompt = "@summarize" }]
