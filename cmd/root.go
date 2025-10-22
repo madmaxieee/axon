@@ -111,7 +111,7 @@ func init() {
 		&flags.ConfigFilePath,
 		"config",
 		"c",
-		filepath.Join(xdg.ConfigHome, "axon", "axon.toml"),
+		filepath.Join(config.GetConfigHome(), "axon.toml"),
 		"path to config file",
 	)
 	rootCmd.Flags().StringVarP(&flags.Pattern, "pattern", "p", "default", "pattern to use")
@@ -142,9 +142,9 @@ func init() {
 			} else {
 				results = cfg.GetAllPatternNames()
 			}
-			return results, cobra.ShellCompDirectiveDefault
+			return results, cobra.ShellCompDirectiveNoFileComp
 		}
-		return []string{}, cobra.ShellCompDirectiveDefault
+		return []string{}, cobra.ShellCompDirectiveError
 	})
 }
 

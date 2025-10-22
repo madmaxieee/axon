@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/adrg/xdg"
 	"github.com/madmaxieee/axon/internal/utils"
 	"github.com/pelletier/go-toml/v2"
 )
@@ -24,7 +23,7 @@ type ConfigFile struct {
 
 type GeneralConfig struct {
 	// in a form of provider/model
-	PromptPath []string
+	PromptPath []string `toml:"prompt_path"`
 	Model      *string
 	// TODO: add other configs like temperature, max tokens, etc.
 }
@@ -90,7 +89,7 @@ You are an expert at interpreting the heart and spirit of a question and answeri
 	},
 	ConfigFile: &ConfigFile{
 		General: GeneralConfig{
-			PromptPath: []string{filepath.Join(xdg.ConfigHome, "axon", "prompts")},
+			PromptPath: []string{filepath.Join(GetConfigHome(), "prompts")},
 			Model:      utils.StringPtr("openai/gpt-4o"),
 		},
 		Providers: []ProviderConfig{
@@ -209,6 +208,9 @@ func (prompt *Prompt) LoadContent() (bool, error) {
 
 func (cfg *Config) scanPromptPath() {
 	for _, root := range cfg.General.PromptPath {
+		if !filepath.IsAbs(root) {
+			root = filepath.Join(GetConfigHome(), root)
+		}
 		entries, err := os.ReadDir(root)
 		if err != nil {
 			continue

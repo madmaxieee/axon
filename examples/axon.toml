@@ -1,5 +1,7 @@
 [general]
 model = "openai/gpt-4o"
+# relative path is resolve relative to ~/.config/axon/
+prompt_path = ["prompts", "fabric_prompts"]
 
 # these providers are preconfigured for you
 [[providers]]
