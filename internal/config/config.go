@@ -165,7 +165,7 @@ func (prompt *Prompt) LoadContent() (bool, error) {
 				return false, err
 			}
 			content := string(data)
-			prompt.System = &content
+			prompt.System = utils.RemoveWhitespace(content)
 		}
 		if prompt.User == nil {
 			userPath := filepath.Join(*prompt.Path, "user.md")
@@ -174,7 +174,7 @@ func (prompt *Prompt) LoadContent() (bool, error) {
 				return false, err
 			}
 			content := string(data)
-			prompt.User = &content
+			prompt.User = utils.RemoveWhitespace(content)
 		}
 		if prompt.System == nil && prompt.User == nil {
 			return false, nil
