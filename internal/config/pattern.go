@@ -224,3 +224,17 @@ func (step *CommandStep) Run(templateArgs *proto.TemplateArgs, needInput bool) (
 
 	return &outputString, nil
 }
+
+// promptName should be with out the "@" prefix
+func MakeSinglePromptPattern(promptName string) Pattern {
+	promptName = strings.TrimPrefix(promptName, "@")
+	promptSpecifier := "@" + promptName
+	return Pattern{
+		Name: promptSpecifier,
+		Steps: []Step{
+			{
+				AIStep: &AIStep{Prompt: promptSpecifier},
+			},
+		},
+	}
+}

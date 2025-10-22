@@ -50,10 +50,10 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 			utils.HandleError(err)
 		}
 
-		promptString := strings.Join(args, " ")
-		prompt := utils.RemoveWhitespace(promptString)
+		userExtraPromptString := strings.Join(args, " ")
+		userExtraPrompt := utils.RemoveWhitespace(userExtraPromptString)
 
-		if stdin == nil && prompt == nil && flags.Pattern == "default" {
+		if stdin == nil && userExtraPrompt == nil && flags.Pattern == "default" {
 			println("No input provided. Use --help for usage information.")
 			return
 		}
@@ -75,7 +75,7 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 			return
 		}
 
-		output, err := pattern.Run(cmd.Context(), cfg, stdin, prompt)
+		output, err := pattern.Run(cmd.Context(), cfg, stdin, userExtraPrompt)
 		if err != nil {
 			utils.HandleError(err)
 		}
@@ -134,7 +134,15 @@ func init() {
 
 	_ = rootCmd.RegisterFlagCompletionFunc("pattern", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if cfg != nil {
-			return cfg.GetAllPatternNames(), cobra.ShellCompDirectiveDefault
+			var results []string
+			if strings.HasPrefix(toComplete, "@") {
+				for _, promptName := range cfg.GetAllPromptNames() {
+					results = append(results, "@"+promptName)
+				}
+			} else {
+				results = cfg.GetAllPatternNames()
+			}
+			return results, cobra.ShellCompDirectiveDefault
 		}
 		return []string{}, cobra.ShellCompDirectiveDefault
 	})

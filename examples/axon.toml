@@ -42,6 +42,7 @@ You are an expert at interpreting the heart and spirit of a question and answeri
 [[patterns]]
 name = "summarize"
 # or you can reference prompt files defined in the 'prompts' directory
+# if your pattern is as simple as this, you can also just run `axon -p @summarize`
 steps = [{ prompt = "@summarize" }]
 
 [[patterns]]

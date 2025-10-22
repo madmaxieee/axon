@@ -127,11 +127,17 @@ You are an expert at interpreting the heart and spirit of a question and answeri
 }
 
 func (cfg *Config) GetPatternByName(name string) *Pattern {
+	if after, ok := strings.CutPrefix(name, "@"); ok {
+		pattern := MakeSinglePromptPattern(after)
+		return &pattern
+	}
+
 	for _, pattern := range cfg.Patterns {
 		if pattern.Name == name {
 			return &pattern
 		}
 	}
+
 	return nil
 }
 
@@ -139,6 +145,15 @@ func (cfg *Config) GetAllPatternNames() []string {
 	names := make([]string, 0, len(cfg.Patterns))
 	for _, pattern := range cfg.Patterns {
 		names = append(names, pattern.Name)
+	}
+	return names
+}
+
+func (cfg *Config) GetAllPromptNames() []string {
+	cfg.scanPromptPath()
+	names := make([]string, 0, len(cfg.Prompts))
+	for name := range cfg.Prompts {
+		names = append(names, name)
 	}
 	return names
 }
@@ -192,12 +207,7 @@ func (prompt *Prompt) LoadContent() (bool, error) {
 	return true, nil
 }
 
-func (cfg *Config) GetPromptByName(name string) (*Prompt, error) {
-	if prompt, ok := cfg.Prompts[name]; ok {
-		prompt.LoadContent()
-		return &prompt, nil
-	}
-
+func (cfg *Config) scanPromptPath() {
 	for _, root := range cfg.General.PromptPath {
 		entries, err := os.ReadDir(root)
 		if err != nil {
@@ -245,6 +255,15 @@ func (cfg *Config) GetPromptByName(name string) (*Prompt, error) {
 			}
 		}
 	}
+}
+
+func (cfg *Config) GetPromptByName(name string) (*Prompt, error) {
+	if prompt, ok := cfg.Prompts[name]; ok {
+		prompt.LoadContent()
+		return &prompt, nil
+	}
+
+	cfg.scanPromptPath()
 
 	if prompt, ok := cfg.Prompts[name]; ok {
 		prompt.LoadContent()
