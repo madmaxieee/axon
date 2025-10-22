@@ -204,10 +204,31 @@ func (cfg *Config) GetPromptByName(name string) (*Prompt, error) {
 			continue
 		}
 		for _, entry := range entries {
-			if entry.IsDir() {
-				cfg.Prompts[entry.Name()] = Prompt{
-					Name:   entry.Name(),
-					Path:   utils.StringPtr(filepath.Join(root, entry.Name())),
+			fullPath := filepath.Join(root, entry.Name())
+
+			// resolve symlink
+			{
+				info, err := entry.Info()
+				if err != nil {
+					continue
+				}
+				if info.Mode()&os.ModeSymlink != 0 {
+					fullPath, err = filepath.EvalSymlinks(fullPath)
+					if err != nil {
+						continue
+					}
+				}
+			}
+
+			stat, err := os.Stat(fullPath)
+			if err != nil {
+				continue
+			}
+
+			if stat.IsDir() {
+				cfg.Prompts[stat.Name()] = Prompt{
+					Name:   stat.Name(),
+					Path:   utils.StringPtr(fullPath),
 					loaded: false,
 					System: nil,
 					User:   nil,
@@ -216,7 +237,7 @@ func (cfg *Config) GetPromptByName(name string) (*Prompt, error) {
 				promptName := strings.TrimSuffix(entry.Name(), ".md")
 				cfg.Prompts[promptName] = Prompt{
 					Name:   promptName,
-					Path:   utils.StringPtr(filepath.Join(root, entry.Name())),
+					Path:   utils.StringPtr(fullPath),
 					loaded: false,
 					System: nil,
 					User:   nil,
