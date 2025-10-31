@@ -61,7 +61,8 @@ steps = [
   { prompt = "@commit_message", output = "commit_message" },
   # you can also reference outputs in commands
   # output is automatically shell-quoted so you don't need to worry about escaping
-  { command = "git commit -e -m {{ .commit_message }}", needs_input = false },
+  # also notice the -e flag, with tty=true, git will be able to launch your editor if needed
+  { command = "git commit -e -m {{ .commit_message }}", needs_input = false, tty = true },
 ]
 
 [[patterns]]
