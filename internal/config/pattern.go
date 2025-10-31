@@ -82,10 +82,12 @@ func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *s
 		if err != nil {
 			return "", err
 		}
-		if step.Output != nil {
-			templateArgs[*step.Output] = *output
-		} else {
-			templateArgs["INPUT"] = *output
+		if output != nil {
+			if step.Output != nil {
+				templateArgs[*step.Output] = *output
+			} else {
+				templateArgs["INPUT"] = *output
+			}
 		}
 	}
 
@@ -125,7 +127,7 @@ func (pattern Pattern) Explain(ctx context.Context, cfg *Config) (string, error)
 	return explanation.String(), nil
 }
 
-func (step *AIStep) Run(ctx context.Context, cfg *Config, client *client.Client, templateArgs *proto.TemplateArgs) (*string, error) {
+func (step AIStep) Run(ctx context.Context, cfg *Config, client *client.Client, templateArgs *proto.TemplateArgs) (*string, error) {
 	var prompt *Prompt
 
 	if strings.HasPrefix(step.Prompt, "@") {
@@ -189,7 +191,7 @@ func (step *AIStep) Run(ctx context.Context, cfg *Config, client *client.Client,
 	return &completion.Choices[0].Message.Content, nil
 }
 
-func (step *CommandStep) Run(templateArgs *proto.TemplateArgs, needInput bool) (*string, error) {
+func (step CommandStep) Run(templateArgs *proto.TemplateArgs, needInput bool) (*string, error) {
 	shell := os.Getenv("SHELL")
 	if shell == "" {
 		shell = "/bin/sh"
@@ -210,7 +212,18 @@ func (step *CommandStep) Run(templateArgs *proto.TemplateArgs, needInput bool) (
 	cmd := exec.Command(shell, "-c", command)
 
 	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
+
+	if step.Tty {
+		ttyFile, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open /dev/tty: %w", err)
+		}
+		defer ttyFile.Close()
+		cmd.Stdout = ttyFile
+	} else {
+		cmd.Stdout = &stdout
+	}
+
 	cmd.Stderr = io.Discard
 	if stdin, ok := (*templateArgs)["INPUT"]; ok && needInput {
 		cmd.Stdin = bytes.NewBufferString(stdin)

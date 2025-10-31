@@ -48,7 +48,7 @@ name = "summarize"
 steps = [{ prompt = "@summarize" }]
 
 [[patterns]]
-# usage: git diff | axon --pattern=git_commit_message
+# usage: git diff --staged | axon --pattern=git_commit_message
 # patterns can take input from stdin
 name = "git_commit_message"
 steps = [

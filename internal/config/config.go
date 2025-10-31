@@ -59,6 +59,7 @@ type Step struct {
 
 type CommandStep struct {
 	Command string
+	Tty     bool
 }
 
 type AIStep struct {
