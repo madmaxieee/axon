@@ -46,7 +46,6 @@ type Prompt struct {
 
 type Pattern struct {
 	// TODO: add description field
-	// TODO: add step/pattern specific model config
 	Name  string
 	Steps []Step
 }
