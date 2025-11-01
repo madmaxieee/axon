@@ -8,6 +8,13 @@ func StringPtr(s string) *string {
 	return &s
 }
 
+func DefaultString(s *string, defaultValue string) string {
+	if s == nil {
+		return defaultValue
+	}
+	return *s
+}
+
 func ShellQuote(s string) string {
 	if s == "" {
 		return "''"

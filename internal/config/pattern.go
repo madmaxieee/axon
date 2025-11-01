@@ -29,41 +29,6 @@ func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *s
 		templateArgs["PROMPT"] = ""
 	}
 
-	providerName, err := cfg.GetProviderName()
-	if err != nil {
-		return "", err
-	}
-
-	providerCfg := cfg.GetProviderByName(providerName)
-	if providerCfg == nil {
-		return "", fmt.Errorf("provider %s not found", providerName)
-	}
-
-	baseURL := providerCfg.BaseURL
-	if baseURL == nil {
-		return "", fmt.Errorf("base URL for provider %s not found", providerName)
-	}
-
-	modelName, err := cfg.GetModelName()
-	if err != nil {
-		return "", err
-	}
-
-	apiKey, err := providerCfg.GetAPIKey()
-	if apiKey == nil {
-		if err != nil {
-			println(err.Error())
-		}
-		return "", fmt.Errorf("API key for provider %s not found", providerName)
-	}
-
-	client := client.NewClient(client.ClientOptions{
-		ProviderName: providerName,
-		ModelName:    modelName,
-		BaseURL:      *providerCfg.BaseURL,
-		APIKey:       *apiKey,
-	})
-
 	for _, step := range p.Steps {
 		needsInput := true
 		if step.NeedsInput != nil {
@@ -73,7 +38,7 @@ func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *s
 		var output *string
 		var err error
 		if step.AIStep != nil {
-			output, err = step.AIStep.Run(ctx, cfg, client, &templateArgs)
+			output, err = step.AIStep.Run(ctx, cfg, &templateArgs)
 		} else if step.CommandStep != nil {
 			output, err = step.CommandStep.Run(&templateArgs, needsInput)
 		} else {
@@ -101,6 +66,8 @@ func (pattern Pattern) Explain(ctx context.Context, cfg *Config) (string, error)
 		explanation.WriteString(fmt.Sprintf("Step %d:\n", i+1))
 		if step.AIStep != nil {
 			explanation.WriteString("  Type: AI Step\n")
+			explanation.WriteString(fmt.Sprintf("  Model: %s\n",
+				utils.DefaultString(step.AIStep.Model, *cfg.General.Model)))
 			explanation.WriteString(fmt.Sprintf("  Prompt: %s\n", step.AIStep.Prompt))
 			if strings.HasPrefix(step.AIStep.Prompt, "@") {
 				promptName := step.AIStep.Prompt[1:]
@@ -127,7 +94,7 @@ func (pattern Pattern) Explain(ctx context.Context, cfg *Config) (string, error)
 	return explanation.String(), nil
 }
 
-func (step AIStep) Run(ctx context.Context, cfg *Config, client *client.Client, templateArgs *proto.TemplateArgs) (*string, error) {
+func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.TemplateArgs) (*string, error) {
 	var prompt *Prompt
 
 	if strings.HasPrefix(step.Prompt, "@") {
@@ -176,6 +143,15 @@ func (step AIStep) Run(ctx context.Context, cfg *Config, client *client.Client, 
 			messages = append(messages, openai.UserMessage((*templateArgs)["INPUT"]))
 		}
 	}
+
+	modelStr := utils.DefaultString(step.Model, *cfg.General.Model)
+
+	clientOptions, err := cfg.GetClientOptions(modelStr)
+	if err != nil {
+		return nil, err
+	}
+
+	client := client.GetClient(*clientOptions)
 
 	stream := client.Request(ctx, proto.Request{Messages: messages})
 

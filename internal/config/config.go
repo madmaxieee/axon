@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/madmaxieee/axon/internal/client"
 	"github.com/madmaxieee/axon/internal/utils"
 	"github.com/pelletier/go-toml/v2"
 )
@@ -53,17 +54,18 @@ type Pattern struct {
 type Step struct {
 	*CommandStep
 	*AIStep
-	NeedsInput *bool
-	Output     *string
+	NeedsInput *bool   // whether or not to pipe the previous step's output as input to this step
+	Output     *string // the name of the output variable to store the result of this step
 }
 
 type CommandStep struct {
-	Command string
-	Tty     bool
+	Command string // the command to run, will be ran with $SHELL -c
+	Tty     bool   // whether to connect the running command to a TTY, can't capture output if true
 }
 
 type AIStep struct {
-	Prompt string
+	Prompt string  // the prompt to use @<prompt_name> or direct content
+	Model  *string // optional override model for this step
 }
 
 var defaultConfig = Config{
@@ -285,29 +287,33 @@ func (cfg *Config) GetProviderByName(name string) *ProviderConfig {
 	return nil
 }
 
-func parseModelString(modelStr string) (string, string, error) {
-	parts := strings.SplitN(modelStr, "/", 2)
-	if len(parts) != 2 {
-		return "", "", errors.New("invalid model string format, expected provider/model, e.g. openai/gpt-4o")
-	}
-	// provider, model
-	return parts[0], parts[1], nil
-}
-
-func (cfg *Config) GetProviderName() (string, error) {
-	provider, _, err := parseModelString(*cfg.General.Model)
+func (cfg *Config) GetClientOptions(modelKey string) (*client.ClientOptions, error) {
+	providerName, modelName, err := client.ParseModelString(modelKey)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return provider, nil
-}
 
-func (cfg *Config) GetModelName() (string, error) {
-	_, model, err := parseModelString(*cfg.General.Model)
-	if err != nil {
-		return "", err
+	provider := cfg.GetProviderByName(providerName)
+	if provider == nil {
+		return nil, errors.New("provider " + providerName + " not found")
 	}
-	return model, nil
+
+	apiKey, err := provider.GetAPIKey()
+	if err != nil {
+		return nil, err
+	}
+
+	baseURL := ""
+	if provider.BaseURL != nil {
+		baseURL = *provider.BaseURL
+	}
+
+	return &client.ClientOptions{
+		ProviderName: providerName,
+		ModelName:    modelName,
+		BaseURL:      baseURL,
+		APIKey:       *apiKey,
+	}, nil
 }
 
 func (cfg *Config) Merge(other *Config) error {
@@ -369,6 +375,7 @@ func (prov *ProviderConfig) GetAPIKey() (*string, error) {
 	}
 	if prov.APIKeyEnv != nil {
 		if value, exists := os.LookupEnv(*prov.APIKeyEnv); exists {
+			prov.APIKey = &value
 			return &value, nil
 		} else {
 			return nil, errors.New("environment variable " + *prov.APIKeyEnv + " not set")
