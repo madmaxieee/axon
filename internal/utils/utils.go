@@ -2,6 +2,7 @@ package utils
 
 import (
 	"math/rand"
+	"os"
 	"strings"
 )
 
@@ -48,4 +49,12 @@ func Nonce() string {
 		b[i] = letters[rand.Intn(len(letters))]
 	}
 	return string(b)
+}
+
+func GetShell() string {
+	shell, exists := os.LookupEnv("SHELL")
+	if !exists || RemoveWhitespace(shell) == nil {
+		shell = "/bin/sh"
+	}
+	return shell
 }

@@ -1,8 +1,11 @@
 package config
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -18,8 +21,8 @@ type Config struct {
 
 type ConfigFile struct {
 	General   GeneralConfig
-	Providers []ProviderConfig
-	Patterns  []Pattern
+	Providers []*ProviderConfig
+	Patterns  []*Pattern
 }
 
 type GeneralConfig struct {
@@ -34,6 +37,7 @@ type ProviderConfig struct {
 	BaseURL   *string `toml:"base_url"`
 	APIKey    *string `toml:"api_key"`
 	APIKeyEnv *string `toml:"api_key_env"`
+	APIKeyCmd *string `toml:"api_key_cmd"`
 }
 
 type Prompt struct {
@@ -94,7 +98,7 @@ You are an expert at interpreting the heart and spirit of a question and answeri
 			PromptPath: []string{filepath.Join(GetConfigHome(), "prompts")},
 			Model:      utils.StringPtr("openai/gpt-4o"),
 		},
-		Providers: []ProviderConfig{
+		Providers: []*ProviderConfig{
 			{
 				Name:      "openai",
 				BaseURL:   utils.StringPtr("https://api.openai.com/v1"),
@@ -114,7 +118,7 @@ You are an expert at interpreting the heart and spirit of a question and answeri
 				APIKeyEnv: utils.StringPtr("ANTHROPIC_API_KEY"),
 			},
 		},
-		Patterns: []Pattern{
+		Patterns: []*Pattern{
 			{
 				Name: "default",
 				Steps: []Step{
@@ -135,7 +139,7 @@ func (cfg *Config) GetPatternByName(name string) *Pattern {
 
 	for _, pattern := range cfg.Patterns {
 		if pattern.Name == name {
-			return &pattern
+			return pattern
 		}
 	}
 
@@ -280,7 +284,7 @@ func (cfg *Config) GetPromptByName(name string) (*Prompt, error) {
 func (cfg *Config) GetProviderByName(name string) *ProviderConfig {
 	for _, provider := range cfg.Providers {
 		if provider.Name == name {
-			return &provider
+			return provider
 		}
 	}
 	return nil
@@ -330,7 +334,7 @@ func (cfg *Config) Merge(other *Config) error {
 		if existingProvider == nil {
 			cfg.Providers = append(cfg.Providers, overrideProvider)
 		} else {
-			err := existingProvider.Merge(&overrideProvider)
+			err := existingProvider.Merge(overrideProvider)
 			if err != nil {
 				return err
 			}
@@ -342,7 +346,7 @@ func (cfg *Config) Merge(other *Config) error {
 		if existingPattern == nil {
 			cfg.Patterns = append(cfg.Patterns, overridePattern)
 		} else {
-			*existingPattern = overridePattern
+			*existingPattern = *overridePattern
 		}
 	}
 
@@ -365,6 +369,9 @@ func (prov *ProviderConfig) Merge(other *ProviderConfig) error {
 	if other.APIKeyEnv != nil {
 		prov.APIKeyEnv = other.APIKeyEnv
 	}
+	if other.APIKeyCmd != nil {
+		prov.APIKeyCmd = other.APIKeyCmd
+	}
 	return nil
 }
 
@@ -374,13 +381,27 @@ func (prov *ProviderConfig) GetAPIKey() (*string, error) {
 	}
 	if prov.APIKeyEnv != nil {
 		if value, exists := os.LookupEnv(*prov.APIKeyEnv); exists {
-			prov.APIKey = &value
-			return &value, nil
-		} else {
-			return nil, errors.New("environment variable " + *prov.APIKeyEnv + " not set")
+			prov.APIKey = utils.RemoveWhitespace(value)
+			if prov.APIKey != nil {
+				return prov.APIKey, nil
+			}
 		}
 	}
-	return nil, errors.New("no API key or environment variable specified for provider " + prov.Name)
+	if prov.APIKeyCmd != nil {
+		shell := utils.GetShell()
+		cmd := exec.Command(shell, "-c", *prov.APIKeyCmd)
+		var stdout bytes.Buffer
+		cmd.Stdout = &stdout
+		if err := cmd.Run(); err != nil {
+			return nil, fmt.Errorf("command failed: %w", err)
+		}
+		outputString := strings.TrimSpace(stdout.String())
+		prov.APIKey = utils.RemoveWhitespace(outputString)
+		if prov.APIKey != nil {
+			return prov.APIKey, nil
+		}
+	}
+	return nil, errors.New("no API key, environment variable or command specified for provider " + prov.Name)
 }
 
 func (cfg *GeneralConfig) Merge(other *GeneralConfig) error {

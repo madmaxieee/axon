@@ -172,10 +172,7 @@ func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.Tem
 }
 
 func (step CommandStep) Run(templateArgs *proto.TemplateArgs, pipeIn bool) (*string, error) {
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		shell = "/bin/sh"
-	}
+	shell := utils.GetShell()
 
 	shellQuotedArgs := make(proto.TemplateArgs)
 	for k, v := range *templateArgs {
