@@ -80,12 +80,10 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 			utils.HandleError(err)
 		}
 
-		// only print to stdout if it is not a tty
-		if !term.IsTerminal(int(os.Stdout.Fd())) {
-			_, err = io.WriteString(os.Stdout, output)
-			if err != nil {
-				utils.HandleError(err)
-			}
+		println()
+		_, err = io.WriteString(os.Stdout, output)
+		if err != nil {
+			utils.HandleError(err)
 		}
 
 		lastOutputPath, err := GetLastOutputPath()

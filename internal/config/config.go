@@ -53,12 +53,12 @@ type Pattern struct {
 type Step struct {
 	*CommandStep
 	*AIStep
-	NeedsInput *bool   // whether or not to pipe the previous step's output as input to this step
-	Output     *string // the name of the output variable to store the result of this step
+	Output *string // the name of the output variable to store the result of this step
 }
 
 type CommandStep struct {
 	Command string // the command to run, will be ran with $SHELL -c
+	PipeIn  *bool  `toml:"pipe_in"` // whether or not to pipe the previous step's output as input to this step
 	Tty     bool   // whether to connect the running command to a TTY, can't capture output if true
 }
 

@@ -16,14 +16,14 @@ name = "git_commit_message"
 steps = [
   # you can reference outputs from previous steps using {{ .output_name }}
   # .commits is used in the @commit_message prompt
-  { command = "git log --max-count=10", output = "commits", needs_input = false },
+  { command = "git log --max-count=10", output = "commits", pipe_in = false },
   # axon's stdin content would be consumed by the first step that "needs input"
   # subsequent steps that "needs input" will receive stdin from the previous step's output
-  { command = "git diff --staged", output = "diff", needs_input = true },
+  { command = "git diff --staged", output = "diff", pipe_in = true },
   { prompt = "@commit_message", output = "commit_message" },
   # you can also reference outputs in commands
   # output is automatically shell-quoted so you don't need to worry about escaping
-  { command = "git commit -e -m {{ .commit_message }}", needs_input = false },
+  { command = "git commit -e -m {{ .commit_message }}", pipe_in = false },
 ]
 ```
 

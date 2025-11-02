@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"math/rand"
 	"strings"
 )
 
@@ -13,6 +14,13 @@ func DefaultString(s *string, defaultValue string) string {
 		return defaultValue
 	}
 	return *s
+}
+
+func DefaultBool(b *bool, defaultValue bool) bool {
+	if b == nil {
+		return defaultValue
+	}
+	return *b
 }
 
 func ShellQuote(s string) string {
@@ -31,4 +39,13 @@ func RemoveWhitespace(str string) *string {
 		return nil
 	}
 	return &str
+}
+
+func Nonce() string {
+	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	b := make([]byte, 16)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -16,47 +15,52 @@ import (
 	"github.com/openai/openai-go/v3"
 )
 
+const (
+	INPUT_VAR  = "INPUT"
+	PROMPT_VAR = "PROMPT"
+)
+
+var PIPE_VAR = fmt.Sprintf("PIPE_%s", utils.Nonce())
+
 func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *string) (string, error) {
 	templateArgs := make(proto.TemplateArgs)
 	if stdin != nil {
-		templateArgs["INPUT"] = *stdin
+		templateArgs[INPUT_VAR] = *stdin
+		templateArgs[PIPE_VAR] = *stdin
 	} else {
-		templateArgs["INPUT"] = ""
+		templateArgs[INPUT_VAR] = ""
+		templateArgs[PIPE_VAR] = ""
 	}
 	if prompt != nil {
-		templateArgs["PROMPT"] = *prompt
+		templateArgs[PROMPT_VAR] = *prompt
 	} else {
-		templateArgs["PROMPT"] = ""
+		templateArgs[PROMPT_VAR] = ""
 	}
 
 	for _, step := range p.Steps {
-		needsInput := true
-		if step.NeedsInput != nil {
-			needsInput = *step.NeedsInput
-		}
-
 		var output *string
 		var err error
 		if step.AIStep != nil {
 			output, err = step.AIStep.Run(ctx, cfg, &templateArgs)
 		} else if step.CommandStep != nil {
-			output, err = step.CommandStep.Run(&templateArgs, needsInput)
+			output, err = step.CommandStep.Run(&templateArgs, utils.DefaultBool(step.PipeIn, false))
 		} else {
 			return "", fmt.Errorf("step has neither AIStep nor CommandStep defined")
 		}
 		if err != nil {
 			return "", err
 		}
+
 		if output != nil {
 			if step.Output != nil {
 				templateArgs[*step.Output] = *output
 			} else {
-				templateArgs["INPUT"] = *output
+				templateArgs[PIPE_VAR] = *output
 			}
 		}
 	}
 
-	return templateArgs["INPUT"], nil
+	return templateArgs[PIPE_VAR], nil
 }
 
 func (pattern Pattern) Explain(ctx context.Context, cfg *Config) (string, error) {
@@ -136,11 +140,11 @@ func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.Tem
 		userPrompt := buf.String()
 		messages = append(messages, openai.UserMessage(userPrompt))
 	} else {
-		if userPrompt, ok := (*templateArgs)["PROMPT"]; ok && userPrompt != "" {
-			messages = append(messages, openai.UserMessage((*templateArgs)["PROMPT"]))
+		if userPrompt, ok := (*templateArgs)[PROMPT_VAR]; ok && userPrompt != "" {
+			messages = append(messages, openai.UserMessage((*templateArgs)[PROMPT_VAR]))
 		}
-		if input, ok := (*templateArgs)["INPUT"]; ok && input != "" {
-			messages = append(messages, openai.UserMessage((*templateArgs)["INPUT"]))
+		if input, ok := (*templateArgs)[INPUT_VAR]; ok && input != "" {
+			messages = append(messages, openai.UserMessage((*templateArgs)[INPUT_VAR]))
 		}
 	}
 
@@ -167,7 +171,7 @@ func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.Tem
 	return &completion.Choices[0].Message.Content, nil
 }
 
-func (step CommandStep) Run(templateArgs *proto.TemplateArgs, needInput bool) (*string, error) {
+func (step CommandStep) Run(templateArgs *proto.TemplateArgs, pipeIn bool) (*string, error) {
 	shell := os.Getenv("SHELL")
 	if shell == "" {
 		shell = "/bin/sh"
@@ -200,8 +204,8 @@ func (step CommandStep) Run(templateArgs *proto.TemplateArgs, needInput bool) (*
 		cmd.Stdout = &stdout
 	}
 
-	cmd.Stderr = io.Discard
-	if stdin, ok := (*templateArgs)["INPUT"]; ok && needInput {
+	cmd.Stderr = os.Stderr
+	if stdin, ok := (*templateArgs)[PIPE_VAR]; ok && pipeIn {
 		cmd.Stdin = bytes.NewBufferString(stdin)
 	}
 
