@@ -161,7 +161,7 @@ func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.Tem
 
 	completion, err := stream.Collect(
 		func(chunk openai.ChatCompletionChunk) {
-			print(chunk.Choices[0].Delta.Content)
+			// print(chunk.Choices[0].Delta.Content)
 		},
 	)
 	if err != nil {
