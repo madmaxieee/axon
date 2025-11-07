@@ -69,7 +69,7 @@ api_key_env = "OPENAI_API_KEY"
 [[providers]]
 name = "google"
 base_url = "https://generativelanguage.googleapis.com/v1beta"
-api_key_env = "GOOGLE_API_KEY"
+api_key_env = "GEMINI_API_KEY"
 
 [[providers]]
 name = "anthropic"

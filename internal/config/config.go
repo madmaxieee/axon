@@ -109,7 +109,7 @@ You are an expert at interpreting the heart and spirit of a question and answeri
 				Name:      "google",
 				BaseURL:   utils.StringPtr("https://generativelanguage.googleapis.com/v1beta"),
 				APIKey:    nil,
-				APIKeyEnv: utils.StringPtr("GOOGLE_API_KEY"),
+				APIKeyEnv: utils.StringPtr("GEMINI_API_KEY"),
 			},
 			{
 				Name:      "anthropic",
