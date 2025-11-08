@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,7 +17,8 @@ import (
 
 type Config struct {
 	*ConfigFile
-	Prompts map[string]Prompt
+	Prompts       map[string]Prompt
+	OverrideModel *string
 }
 
 type ConfigFile struct {
@@ -321,6 +323,21 @@ func (cfg *Config) GetClientOptions(modelKey string) (*client.ClientOptions, err
 
 func (cfg *Config) Merge(other *Config) error {
 	if other == nil {
+		return nil
+	}
+
+	if other.OverrideModel != nil {
+		cfg.OverrideModel = other.OverrideModel
+	}
+
+	if other.Prompts != nil {
+		if cfg.Prompts == nil {
+			cfg.Prompts = make(map[string]Prompt)
+		}
+		maps.Copy(cfg.Prompts, other.Prompts)
+	}
+
+	if other.ConfigFile == nil {
 		return nil
 	}
 

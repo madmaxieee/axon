@@ -19,6 +19,7 @@ type Flags struct {
 	Pattern        string
 	Explain        bool
 	ShowLast       bool
+	Model          string
 }
 
 var flags Flags
@@ -32,6 +33,8 @@ var rootCmd = &cobra.Command{
 It's designed to be a versatile and scriptable tool that can be easily integrated into your workflows.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
+		cfg.Merge(GetOverrideConfig(flags))
+
 		if flags.ShowLast {
 			lastOutputPath, err := GetLastOutputPath()
 			if err != nil {
@@ -115,6 +118,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&flags.Pattern, "pattern", "p", "default", "pattern to use")
 	rootCmd.Flags().BoolVarP(&flags.ShowLast, "show-last", "S", false, "show last output")
 	rootCmd.Flags().BoolVarP(&flags.Explain, "explain", "e", false, "explain the chosen pattern and exit")
+	rootCmd.Flags().StringVarP(&flags.Model, "model", "m", "", "override the model for all AI steps")
 
 	if strings.HasPrefix(flags.ConfigFilePath, "~/") {
 		homeDir, err := os.UserHomeDir()
@@ -166,4 +170,11 @@ func ReadStdinIfPiped() (*string, error) {
 
 func GetLastOutputPath() (string, error) {
 	return xdg.CacheFile("axon/last_output.txt")
+}
+
+func GetOverrideConfig(flags Flags) *config.Config {
+	overrideCfg := &config.Config{
+		OverrideModel: utils.RemoveWhitespace(flags.Model),
+	}
+	return overrideCfg
 }

@@ -70,8 +70,7 @@ func (pattern Pattern) Explain(ctx context.Context, cfg *Config) (string, error)
 		explanation.WriteString(fmt.Sprintf("Step %d:\n", i+1))
 		if step.AIStep != nil {
 			explanation.WriteString("  Type: AI Step\n")
-			explanation.WriteString(fmt.Sprintf("  Model: %s\n",
-				utils.DefaultString(step.AIStep.Model, *cfg.General.Model)))
+			explanation.WriteString(fmt.Sprintf("  Model: %s\n", selectModelForStep(cfg, *step.AIStep)))
 			explanation.WriteString(fmt.Sprintf("  Prompt: %s\n", step.AIStep.Prompt))
 			if strings.HasPrefix(step.AIStep.Prompt, "@") {
 				promptName := step.AIStep.Prompt[1:]
@@ -148,7 +147,7 @@ func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.Tem
 		}
 	}
 
-	modelStr := utils.DefaultString(step.Model, *cfg.General.Model)
+	modelStr := selectModelForStep(cfg, step)
 
 	clientOptions, err := cfg.GetClientOptions(modelStr)
 	if err != nil {
@@ -227,4 +226,12 @@ func MakeSinglePromptPattern(promptName string) Pattern {
 			},
 		},
 	}
+}
+
+func selectModelForStep(cfg *Config, step AIStep) string {
+	if cfg.OverrideModel != nil {
+		return *cfg.OverrideModel
+	}
+	modelStr := utils.DefaultString(step.Model, *cfg.General.Model)
+	return modelStr
 }
