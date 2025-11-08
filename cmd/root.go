@@ -41,19 +41,20 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 			return
 		}
 
-		cfg, err = config.EnsureConfig(&flags.ConfigFilePath)
-		if err != nil {
-			utils.HandleError(err)
-		}
-
 		if flags.Replay {
 			lastRunData, err = cache.GetLastRunData()
 			if err != nil {
 				utils.HandleError(err)
 			}
-			cfg.Merge(config.GetOverrideConfig(lastRunData.Flags))
+			err = cfg.Merge(config.GetOverrideConfig(lastRunData.Flags))
+			if err != nil {
+				utils.HandleError(err)
+			}
 		} else {
-			cfg.Merge(config.GetOverrideConfig(flags))
+			err = cfg.Merge(config.GetOverrideConfig(flags))
+			if err != nil {
+				utils.HandleError(err)
+			}
 		}
 
 		var pattern *config.Pattern
@@ -142,6 +143,13 @@ func init() {
 			utils.HandleError(err)
 		}
 		flags.ConfigFilePath = filepath.Join(homeDir, flags.ConfigFilePath[1:])
+	}
+
+	// we have to populate cfg here to use it in the completion function
+	var err error
+	cfg, err = config.EnsureConfig(&flags.ConfigFilePath)
+	if err != nil {
+		utils.HandleError(err)
 	}
 
 	_ = rootCmd.RegisterFlagCompletionFunc("pattern", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
