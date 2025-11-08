@@ -21,3 +21,12 @@ func (m TemplateArgs) Get(key string) string {
 	}
 	return v
 }
+
+type Flags struct {
+	ConfigFilePath string
+	Pattern        string
+	Explain        bool
+	ShowLast       bool
+	Model          string
+	Replay         bool
+}

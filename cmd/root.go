@@ -7,22 +7,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/adrg/xdg"
+	"github.com/madmaxieee/axon/internal/cache"
 	"github.com/madmaxieee/axon/internal/config"
+	"github.com/madmaxieee/axon/internal/proto"
 	"github.com/madmaxieee/axon/internal/utils"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
 
-type Flags struct {
-	ConfigFilePath string
-	Pattern        string
-	Explain        bool
-	ShowLast       bool
-	Model          string
-}
-
-var flags Flags
+var flags proto.Flags
 var cfg *config.Config
 
 var rootCmd = &cobra.Command{
@@ -33,37 +26,66 @@ var rootCmd = &cobra.Command{
 It's designed to be a versatile and scriptable tool that can be easily integrated into your workflows.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
-		cfg.Merge(GetOverrideConfig(flags))
+		var lastRunData *cache.RunData
+		var err error
 
 		if flags.ShowLast {
-			lastOutputPath, err := GetLastOutputPath()
+			lastOutput, err := cache.GetLastOutput()
 			if err != nil {
 				utils.HandleError(err)
 			}
-			data, err := os.ReadFile(lastOutputPath)
+			_, err = os.Stdout.Write([]byte(lastOutput))
 			if err != nil {
 				utils.HandleError(err)
 			}
-			_, err = os.Stdout.Write(data)
 			return
 		}
 
-		stdin, err := ReadStdinIfPiped()
+		cfg, err = config.EnsureConfig(&flags.ConfigFilePath)
 		if err != nil {
 			utils.HandleError(err)
 		}
 
-		userExtraPromptString := strings.Join(args, " ")
-		userExtraPrompt := utils.RemoveWhitespace(userExtraPromptString)
+		if flags.Replay {
+			lastRunData, err = cache.GetLastRunData()
+			if err != nil {
+				utils.HandleError(err)
+			}
+			cfg.Merge(config.GetOverrideConfig(lastRunData.Flags))
+		} else {
+			cfg.Merge(config.GetOverrideConfig(flags))
+		}
+
+		var pattern *config.Pattern
+		var stdin *string
+		var userExtraPrompt *string
+
+		if flags.Replay {
+			stdin = utils.RemoveWhitespace(lastRunData.Input)
+			userExtraPrompt = utils.RemoveWhitespace(lastRunData.Prompt)
+			pattern = &lastRunData.Pattern
+		} else {
+			stdin, err = ReadStdinIfPiped()
+			if err != nil {
+				utils.HandleError(err)
+			}
+			userExtraPrompt = utils.RemoveWhitespace(strings.Join(args, " "))
+			pattern = cfg.GetPatternByName(flags.Pattern)
+			_ = cache.SaveRunData(&cache.RunData{
+				Pattern: *pattern,
+				Flags:   flags,
+				Input:   utils.DerefString(stdin),
+				Prompt:  utils.DerefString(userExtraPrompt),
+			})
+		}
+
+		if pattern == nil {
+			utils.HandleError(errors.New("pattern not found: " + flags.Pattern))
+		}
 
 		if stdin == nil && userExtraPrompt == nil && flags.Pattern == "default" {
 			println("No input provided. Use --help for usage information.")
 			return
-		}
-
-		pattern := cfg.GetPatternByName(flags.Pattern)
-		if pattern == nil {
-			utils.HandleError(errors.New("pattern not found: " + flags.Pattern))
 		}
 
 		if flags.Explain {
@@ -89,14 +111,7 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 			utils.HandleError(err)
 		}
 
-		lastOutputPath, err := GetLastOutputPath()
-		if err != nil {
-			utils.HandleError(err)
-		}
-		err = os.WriteFile(lastOutputPath, []byte(output), 0644)
-		if err != nil {
-			utils.HandleError(err)
-		}
+		_ = cache.SaveOutput(output)
 	},
 }
 
@@ -117,6 +132,7 @@ func init() {
 	)
 	rootCmd.Flags().StringVarP(&flags.Pattern, "pattern", "p", "default", "pattern to use")
 	rootCmd.Flags().BoolVarP(&flags.ShowLast, "show-last", "S", false, "show last output")
+	rootCmd.Flags().BoolVarP(&flags.Replay, "replay", "R", false, "replay the last run with the same inputs and pattern")
 	rootCmd.Flags().BoolVarP(&flags.Explain, "explain", "e", false, "explain the chosen pattern and exit")
 	rootCmd.Flags().StringVarP(&flags.Model, "model", "m", "", "override the model for all AI steps")
 
@@ -126,12 +142,6 @@ func init() {
 			utils.HandleError(err)
 		}
 		flags.ConfigFilePath = filepath.Join(homeDir, flags.ConfigFilePath[1:])
-	}
-
-	var err error
-	cfg, err = config.EnsureConfig(&flags.ConfigFilePath)
-	if err != nil {
-		utils.HandleError(err)
 	}
 
 	_ = rootCmd.RegisterFlagCompletionFunc("pattern", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -166,15 +176,4 @@ func ReadStdinIfPiped() (*string, error) {
 	}
 
 	return nil, nil
-}
-
-func GetLastOutputPath() (string, error) {
-	return xdg.CacheFile("axon/last_output.txt")
-}
-
-func GetOverrideConfig(flags Flags) *config.Config {
-	overrideCfg := &config.Config{
-		OverrideModel: utils.RemoveWhitespace(flags.Model),
-	}
-	return overrideCfg
 }

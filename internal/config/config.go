@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/madmaxieee/axon/internal/client"
+	"github.com/madmaxieee/axon/internal/proto"
 	"github.com/madmaxieee/axon/internal/utils"
 	"github.com/pelletier/go-toml/v2"
 )
@@ -450,4 +451,11 @@ func EnsureConfig(configFilePath *string) (*Config, error) {
 	cfg := defaultConfig
 	err = cfg.Merge(&Config{ConfigFile: &configFile})
 	return &cfg, err
+}
+
+func GetOverrideConfig(flags proto.Flags) *Config {
+	overrideCfg := &Config{
+		OverrideModel: utils.RemoveWhitespace(flags.Model),
+	}
+	return overrideCfg
 }
