@@ -1,3 +1,9 @@
+install:
+    go install -tags=development
+
+install-release:
+    go install
+
 build:
     go build -tags=development
 
