@@ -190,12 +190,12 @@ func (step CommandStep) Run(templateArgs *proto.TemplateArgs, pipeIn bool) (*str
 	var stdout bytes.Buffer
 
 	if step.Tty {
-		ttyFile, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open /dev/tty: %w", err)
+		if ttyFile, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err == nil {
+			defer ttyFile.Close()
+			cmd.Stdout = ttyFile
+		} else {
+			cmd.Stdout = &stdout
 		}
-		defer ttyFile.Close()
-		cmd.Stdout = ttyFile
 	} else {
 		cmd.Stdout = &stdout
 	}
