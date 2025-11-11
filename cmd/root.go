@@ -106,7 +106,10 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 			utils.HandleError(err)
 		}
 
-		println()
+		if !cfg.GetQuiet() {
+			println()
+		}
+
 		_, err = io.WriteString(os.Stdout, output)
 		if err != nil {
 			utils.HandleError(err)
@@ -136,6 +139,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&flags.Replay, "replay", "R", false, "replay the last run with the same inputs and pattern")
 	rootCmd.Flags().BoolVarP(&flags.Explain, "explain", "e", false, "explain the chosen pattern and exit")
 	rootCmd.Flags().StringVarP(&flags.Model, "model", "m", "", "override the model for all AI steps")
+	rootCmd.Flags().BoolVarP(&flags.Quiet, "quiet", "q", false, "suppress non-essential output")
 
 	if strings.HasPrefix(flags.ConfigFilePath, "~/") {
 		homeDir, err := os.UserHomeDir()

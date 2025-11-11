@@ -17,9 +17,10 @@ import (
 )
 
 type Config struct {
-	*ConfigFile
-	Prompts       map[string]Prompt
 	OverrideModel *string
+	Quiet         *bool
+	Prompts       map[string]Prompt
+	*ConfigFile
 }
 
 type ConfigFile struct {
@@ -75,6 +76,8 @@ type AIStep struct {
 }
 
 var defaultConfig = Config{
+	OverrideModel: nil,
+	Quiet:         utils.BoolPtr(false),
 	Prompts: map[string]Prompt{
 		"default": {
 			Name: "default",
@@ -147,6 +150,10 @@ func (cfg *Config) GetPatternByName(name string) *Pattern {
 	}
 
 	return nil
+}
+
+func (cfg Config) GetQuiet() bool {
+	return utils.DefaultBool(cfg.Quiet, false)
 }
 
 func (cfg *Config) GetAllPatternNames() []string {
@@ -331,6 +338,10 @@ func (cfg *Config) Merge(other *Config) error {
 		cfg.OverrideModel = other.OverrideModel
 	}
 
+	if other.Quiet != nil {
+		cfg.Quiet = other.Quiet
+	}
+
 	if other.Prompts != nil {
 		if cfg.Prompts == nil {
 			cfg.Prompts = make(map[string]Prompt)
@@ -456,6 +467,7 @@ func EnsureConfig(configFilePath *string) (*Config, error) {
 func GetOverrideConfig(flags proto.Flags) *Config {
 	overrideCfg := &Config{
 		OverrideModel: utils.RemoveWhitespace(flags.Model),
+		Quiet:         utils.BoolPtr(flags.Quiet),
 	}
 	return overrideCfg
 }

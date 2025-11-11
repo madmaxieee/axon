@@ -24,6 +24,10 @@ func DefaultString(s *string, defaultValue string) string {
 	return *s
 }
 
+func BoolPtr(b bool) *bool {
+	return &b
+}
+
 func DefaultBool(b *bool, defaultValue bool) bool {
 	if b == nil {
 		return defaultValue

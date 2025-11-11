@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -43,7 +44,7 @@ func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *s
 		if step.AIStep != nil {
 			output, err = step.AIStep.Run(ctx, cfg, &templateArgs)
 		} else if step.CommandStep != nil {
-			output, err = step.CommandStep.Run(&templateArgs, utils.DefaultBool(step.PipeIn, false))
+			output, err = step.CommandStep.Run(ctx, cfg, &templateArgs, utils.DefaultBool(step.PipeIn, false))
 		} else {
 			return "", fmt.Errorf("step has neither AIStep nor CommandStep defined")
 		}
@@ -170,7 +171,7 @@ func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.Tem
 	return &completion.Choices[0].Message.Content, nil
 }
 
-func (step CommandStep) Run(templateArgs *proto.TemplateArgs, pipeIn bool) (*string, error) {
+func (step CommandStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.TemplateArgs, pipeIn bool) (*string, error) {
 	shell := utils.GetShell()
 
 	shellQuotedArgs := make(proto.TemplateArgs)
@@ -187,20 +188,25 @@ func (step CommandStep) Run(templateArgs *proto.TemplateArgs, pipeIn bool) (*str
 
 	cmd := exec.Command(shell, "-c", command)
 
-	var stdout bytes.Buffer
+	var stdoutBuf bytes.Buffer
 
 	if step.Tty {
 		if ttyFile, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err == nil {
 			defer ttyFile.Close()
 			cmd.Stdout = ttyFile
 		} else {
-			cmd.Stdout = &stdout
+			cmd.Stdout = &stdoutBuf
 		}
 	} else {
-		cmd.Stdout = &stdout
+		cmd.Stdout = &stdoutBuf
 	}
 
-	cmd.Stderr = os.Stderr
+	if cfg.GetQuiet() {
+		cmd.Stderr = io.Discard
+	} else {
+		cmd.Stderr = os.Stderr
+	}
+
 	if stdin, ok := (*templateArgs)[PIPE_VAR]; ok && pipeIn {
 		cmd.Stdin = bytes.NewBufferString(stdin)
 	}
@@ -209,7 +215,7 @@ func (step CommandStep) Run(templateArgs *proto.TemplateArgs, pipeIn bool) (*str
 		return nil, fmt.Errorf("command failed: %w", err)
 	}
 
-	outputString := stdout.String()
+	outputString := stdoutBuf.String()
 
 	return &outputString, nil
 }

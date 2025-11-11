@@ -29,4 +29,5 @@ type Flags struct {
 	ShowLast       bool
 	Model          string
 	Replay         bool
+	Quiet          bool
 }
