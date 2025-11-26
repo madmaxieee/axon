@@ -254,6 +254,9 @@ func (cfg *Config) scanPromptPath() {
 			}
 
 			if stat.IsDir() {
+				if _, exists := cfg.Prompts[stat.Name()]; exists {
+					continue
+				}
 				cfg.Prompts[stat.Name()] = Prompt{
 					Name:   stat.Name(),
 					Path:   utils.StringPtr(fullPath),
@@ -263,6 +266,9 @@ func (cfg *Config) scanPromptPath() {
 				}
 			} else if strings.HasSuffix(entry.Name(), ".md") {
 				promptName := strings.TrimSuffix(entry.Name(), ".md")
+				if _, exists := cfg.Prompts[promptName]; exists {
+					continue
+				}
 				cfg.Prompts[promptName] = Prompt{
 					Name:   promptName,
 					Path:   utils.StringPtr(fullPath),
