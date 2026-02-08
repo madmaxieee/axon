@@ -75,8 +75,8 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 			_ = cache.SaveRunData(&cache.RunData{
 				Pattern: pattern,
 				Flags:   flags,
-				Input:   utils.DerefString(stdin),
-				Prompt:  utils.DerefString(userExtraPrompt),
+				Input:   utils.DefaultString(stdin, ""),
+				Prompt:  utils.DefaultString(userExtraPrompt, ""),
 			})
 		}
 
