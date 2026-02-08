@@ -131,6 +131,7 @@ func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.Tem
 		messages = append(messages, openai.SystemMessage(systemPrompt))
 	}
 
+	hasUserMessage := false
 	if prompt.User != nil {
 		tmpl := template.Must(template.New("user").Parse(*prompt.User))
 		var buf bytes.Buffer
@@ -139,13 +140,26 @@ func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.Tem
 		}
 		userPrompt := buf.String()
 		messages = append(messages, openai.UserMessage(userPrompt))
+		hasUserMessage = true
 	} else {
 		if userPrompt, ok := (*templateArgs)[PROMPT_VAR]; ok && userPrompt != "" {
 			messages = append(messages, openai.UserMessage((*templateArgs)[PROMPT_VAR]))
+			hasUserMessage = true
 		}
 		if input, ok := (*templateArgs)[INPUT_VAR]; ok && input != "" {
 			messages = append(messages, openai.UserMessage((*templateArgs)[INPUT_VAR]))
+			hasUserMessage = true
 		}
+	}
+
+	if len(messages) > 0 && !hasUserMessage {
+		return nil, fmt.Errorf(`No user message found in the prompt. Try providing a message by typing after the pattern name or piping into the command. For example:
+
+  echo "Tell me a joke" | axon -p %s
+
+or
+
+  axon -p %s -- Tell me a joke`, step.Prompt, step.Prompt)
 	}
 
 	modelStr := selectModelForStep(cfg, step)
