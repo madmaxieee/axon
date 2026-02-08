@@ -10,7 +10,7 @@ import (
 )
 
 type RunData struct {
-	Pattern config.Pattern
+	Pattern *config.Pattern
 	Flags   proto.Flags
 	Input   string
 	Prompt  string
@@ -42,6 +42,9 @@ func GetLastRunData() (*RunData, error) {
 }
 
 func SaveRunData(runData *RunData) error {
+	if runData == nil || runData.Pattern == nil {
+		return nil
+	}
 	path, err := getLastRunDataPath()
 	if err != nil {
 		return err
@@ -50,8 +53,7 @@ func SaveRunData(runData *RunData) error {
 	if err != nil {
 		return err
 	}
-	os.WriteFile(path, data, 0644)
-	return nil
+	return os.WriteFile(path, data, 0644)
 }
 
 func GetLastOutput() (string, error) {

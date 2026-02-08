@@ -64,7 +64,7 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 		if flags.Replay {
 			stdin = utils.RemoveWhitespace(lastRunData.Input)
 			userExtraPrompt = utils.RemoveWhitespace(lastRunData.Prompt)
-			pattern = &lastRunData.Pattern
+			pattern = lastRunData.Pattern
 		} else {
 			stdin, err = ReadStdinIfPiped()
 			if err != nil {
@@ -73,7 +73,7 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 			userExtraPrompt = utils.RemoveWhitespace(strings.Join(args, " "))
 			pattern = cfg.GetPatternByName(flags.Pattern)
 			_ = cache.SaveRunData(&cache.RunData{
-				Pattern: *pattern,
+				Pattern: pattern,
 				Flags:   flags,
 				Input:   utils.DerefString(stdin),
 				Prompt:  utils.DerefString(userExtraPrompt),
