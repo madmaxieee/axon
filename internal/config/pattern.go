@@ -172,9 +172,11 @@ or
 
 	client := client.GetClient(*clientOptions)
 
-	spinner := internal.NewSpinner()
-	spinner.Start("Thinking...")
-	defer spinner.Stop()
+	if !cfg.GetQuiet() {
+		spinner := internal.NewSpinner()
+		spinner.Start("Thinking...")
+		defer spinner.Stop()
+	}
 
 	stream := client.Request(ctx, proto.Request{Messages: messages})
 
