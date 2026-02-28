@@ -19,7 +19,7 @@ var flags proto.Flags
 var cfg *config.Config
 
 var rootCmd = &cobra.Command{
-	Use: "axon",
+	Use: "axon [pattern|-] [prompt...]",
 	// TODO: come up with a better description
 	Short: "A CLI tool to automate tasks with LLMs",
 	Long: `Axon is a command-line tool that leverages the power of LLMs to automate tasks.
@@ -76,7 +76,20 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 			if err != nil {
 				utils.HandleError(err)
 			}
-			userExtraPrompt = utils.RemoveWhitespace(strings.Join(args, " "))
+			var promptArgs []string
+			if len(args) > 0 {
+				if args[0] == "-" || args[0] == "--" {
+					flags.Pattern = "default"
+					promptArgs = args[1:]
+				} else {
+					flags.Pattern = args[0]
+					promptArgs = args[1:]
+				}
+			} else {
+				flags.Pattern = "default"
+				promptArgs = []string{}
+			}
+			userExtraPrompt = utils.RemoveWhitespace(strings.Join(promptArgs, " "))
 			pattern = cfg.GetPatternByName(flags.Pattern)
 			_ = cache.SaveRunData(&cache.RunData{
 				Pattern: pattern,
@@ -141,7 +154,6 @@ func init() {
 		filepath.Join(config.GetConfigHome(), "axon.toml"),
 		"path to config file",
 	)
-	rootCmd.Flags().StringVarP(&flags.Pattern, "pattern", "p", "default", "pattern to use")
 	rootCmd.Flags().BoolVarP(&flags.ShowLast, "show-last", "S", false, "show last output")
 	rootCmd.Flags().BoolVarP(&flags.Replay, "replay", "R", false, "replay the last run with the same inputs and pattern")
 	rootCmd.Flags().BoolVarP(&flags.Explain, "explain", "e", false, "explain the chosen pattern and exit")
@@ -163,7 +175,10 @@ func init() {
 		utils.HandleError(err)
 	}
 
-	_ = rootCmd.RegisterFlagCompletionFunc("pattern", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	rootCmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
 		if cfg != nil {
 			var results []string
 			if strings.HasPrefix(toComplete, "@") {
@@ -176,7 +191,7 @@ func init() {
 			return results, cobra.ShellCompDirectiveNoFileComp
 		}
 		return []string{}, cobra.ShellCompDirectiveError
-	})
+	}
 }
 
 func ReadStdinIfPiped() (*string, error) {

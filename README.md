@@ -10,7 +10,7 @@ First you define a pattern in your config file (`~/.config/axon/axon.toml`):
 
 ```toml
 [[patterns]]
-# usage: git diff | axon --pattern=git_commit_message
+# usage: git diff | axon git_commit_message
 # patterns can take input from stdin
 name = "git_commit_message"
 steps = [
@@ -31,7 +31,7 @@ With the above pattern defined, you can generate a commit message based on the s
 
 ```sh
 git add .
-git diff --staged | axon --pattern=git_commit_message
+git diff --staged | axon git_commit_message
 ```
 
 For more examples, check out the [examples directory](./examples)
@@ -77,7 +77,7 @@ base_url = "https://api.anthropic.com/v1"
 api_key_env = "ANTHROPIC_API_KEY"
 
 [[patterns]]
-# the default pattern is used when no --pattern is specified
+# the default pattern is used when no pattern is specified
 name = "default"
 steps = [
   { prompt = """

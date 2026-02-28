@@ -20,7 +20,7 @@ base_url = "https://api.anthropic.com/v1"
 api_key_env = "ANTHROPIC_API_KEY"
 
 [[patterns]]
-# the default pattern is used when no --pattern is specified
+# the default pattern is used when no pattern is specified
 name = "default"
 steps = [
   # you can declare raw prompts inline
@@ -44,11 +44,11 @@ You are an expert at interpreting the heart and spirit of a question and answeri
 [[patterns]]
 name = "summarize"
 # or you can reference prompt files defined in the 'prompts' directory
-# if your pattern is as simple as this, you can also just run `axon -p @summarize`
+# if your pattern is as simple as this, you can also just run `axon @summarize`
 steps = [{ prompt = "@summarize" }]
 
 [[patterns]]
-# usage: git diff --staged | axon --pattern=git_commit_message
+# usage: git diff --staged | axon git_commit_message
 # patterns can take input from stdin
 name = "git_commit_message"
 steps = [
