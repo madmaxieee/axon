@@ -7,6 +7,20 @@ import (
 )
 
 var frames = []string{"⠇", "⠋", "⠙", "⠸", "⢰", "⣠", "⣄", "⡆"}
+var gradient = []string{
+	"\033[38;2;255;0;0m",
+	"\033[38;2;255;0;85m",
+	"\033[38;2;255;0;170m",
+	"\033[38;2;255;0;255m",
+	"\033[38;2;212;0;255m",
+	"\033[38;2;170;0;255m",
+	"\033[38;2;128;0;255m",
+	"\033[38;2;170;0;255m",
+	"\033[38;2;212;0;255m",
+	"\033[38;2;255;0;255m",
+	"\033[38;2;255;0;170m",
+	"\033[38;2;255;0;85m",
+}
 
 type Spinner struct {
 	frames   []string
@@ -38,8 +52,11 @@ func (s *Spinner) Start(message string) {
 	s.doneChan = make(chan struct{})
 	go func() {
 		defer close(s.doneChan)
+		colorIndex := 0
 		for {
-			fmt.Fprintf(os.Stderr, "\r\033[K%s %s", s.Next(), message)
+			color := gradient[colorIndex]
+			colorIndex = (colorIndex + 1) % len(gradient)
+			fmt.Fprintf(os.Stderr, "\r\033[K%s%s\033[0m \033[2m%s\033[0m", color, s.Next(), message)
 			select {
 			case <-s.stopChan:
 				return
