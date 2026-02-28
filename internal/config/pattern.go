@@ -10,6 +10,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/madmaxieee/axon/internal"
 	"github.com/madmaxieee/axon/internal/client"
 	"github.com/madmaxieee/axon/internal/proto"
 	"github.com/madmaxieee/axon/internal/utils"
@@ -170,6 +171,10 @@ or
 	}
 
 	client := client.GetClient(*clientOptions)
+
+	spinner := internal.NewSpinner()
+	spinner.Start("Thinking...")
+	defer spinner.Stop()
 
 	stream := client.Request(ctx, proto.Request{Messages: messages})
 
