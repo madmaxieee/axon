@@ -156,11 +156,11 @@ func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.Tem
 	if len(messages) > 0 && !hasUserMessage {
 		return nil, fmt.Errorf(`No user message found in the prompt. Try providing a message by typing after the pattern name or piping into the command. For example:
 
-  echo "Tell me a joke" | axon -p %s
+  echo "Tell me a joke" | axon %s
 
 or
 
-  axon -p %s -- Tell me a joke`, step.Prompt, step.Prompt)
+  axon %s -- Tell me a joke`, step.Prompt, step.Prompt)
 	}
 
 	modelStr := selectModelForStep(cfg, step)

@@ -77,7 +77,7 @@ By defining custom patterns in your configuration, you can easily script complex
 			}
 			var promptArgs []string
 			if len(args) > 0 {
-				if args[0] == "-" || args[0] == "--" {
+				if args[0] == "-" {
 					flags.Pattern = "default"
 					promptArgs = args[1:]
 				} else {
