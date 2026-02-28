@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/madmaxieee/axon/internal"
 	"github.com/madmaxieee/axon/internal/cache"
 	"github.com/madmaxieee/axon/internal/config"
 	"github.com/madmaxieee/axon/internal/proto"
@@ -108,10 +109,16 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 			return
 		}
 
+		spinner := internal.NewSpinner()
+		spinner.Start("Running pattern...")
+
 		output, err := pattern.Run(cmd.Context(), cfg, stdin, userExtraPrompt)
 		if err != nil {
+			spinner.Stop()
 			utils.HandleError(err)
 		}
+
+		spinner.Stop()
 
 		if !cfg.GetQuiet() {
 			io.WriteString(os.Stderr, "\n")
