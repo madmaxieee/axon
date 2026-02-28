@@ -19,11 +19,10 @@ var flags proto.Flags
 var cfg *config.Config
 
 var rootCmd = &cobra.Command{
-	Use: "axon [pattern|-] [prompt...]",
-	// TODO: come up with a better description
-	Short: "A CLI tool to automate tasks with LLMs",
-	Long: `Axon is a command-line tool that leverages the power of LLMs to automate tasks.
-It's designed to be a versatile and scriptable tool that can be easily integrated into your workflows.`,
+	Use:   "axon [pattern|-] [prompt...]",
+	Short: "A scriptable CLI tool for LLM-powered shell automation",
+	Long: `Axon is a powerful command-line tool that brings the capabilities of LLMs directly into your shell pipelines.
+By defining custom patterns in your configuration, you can easily script complex, multi-step AI workflows, process standard input, and integrate intelligent automation into your daily developer tasks.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 		var lastRunData *cache.RunData
