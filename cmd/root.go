@@ -29,6 +29,7 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 		var lastRunData *cache.RunData
 		var err error
 
+		// if show-last flag is set, just show the last output and exit
 		if flags.ShowLast {
 			lastOutput, err := cache.GetLastOutput()
 			if err != nil {
@@ -41,6 +42,7 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 			return
 		}
 
+		// constructing config
 		if flags.Replay {
 			lastRunData, err = cache.GetLastRunData()
 			if err != nil {
@@ -56,7 +58,11 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 				utils.HandleError(err)
 			}
 		}
+		if os.Getenv("VIMRUNTIME") != "" {
+			cfg.Quiet = utils.BoolPtr(true)
+		}
 
+		// collect input, pattern and user extra prompt to run
 		var pattern *config.Pattern
 		var stdin *string
 		var userExtraPrompt *string
@@ -89,6 +95,7 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 			return
 		}
 
+		// if explain flag is set, just explain the pattern and exit
 		if flags.Explain {
 			explanation, err := pattern.Explain(cmd.Context(), cfg)
 			if err != nil {
@@ -107,7 +114,7 @@ It's designed to be a versatile and scriptable tool that can be easily integrate
 		}
 
 		if !cfg.GetQuiet() {
-			println()
+			io.WriteString(os.Stderr, "\n")
 		}
 
 		_, err = io.WriteString(os.Stdout, output)
