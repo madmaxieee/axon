@@ -48,6 +48,8 @@ func (s *Spinner) Start(message string) {
 	if s.stopChan != nil {
 		return
 	}
+	// \033[?25l hides the terminal cursor
+	fmt.Fprintf(os.Stderr, "\033[?25l")
 	s.stopChan = make(chan struct{})
 	s.doneChan = make(chan struct{})
 	go func() {
@@ -72,6 +74,8 @@ func (s *Spinner) Stop() {
 		<-s.doneChan
 		s.stopChan = nil
 		s.doneChan = nil
-		fmt.Fprintf(os.Stderr, "\r\033[K")
+		// \033[K clears the line
+		// \033[?25h restores the cursor
+		fmt.Fprintf(os.Stderr, "\r\033[K\033[?25h")
 	}
 }
