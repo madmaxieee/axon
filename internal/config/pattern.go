@@ -143,12 +143,13 @@ func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.Tem
 		messages = append(messages, openai.UserMessage(userPrompt))
 		hasUserMessage = true
 	} else {
-		if userPrompt, ok := (*templateArgs)[PROMPT_VAR]; ok && userPrompt != "" {
-			messages = append(messages, openai.UserMessage((*templateArgs)[PROMPT_VAR]))
-			hasUserMessage = true
-		}
+		// provide context before user prompt
 		if input, ok := (*templateArgs)[INPUT_VAR]; ok && input != "" {
 			messages = append(messages, openai.UserMessage((*templateArgs)[INPUT_VAR]))
+			hasUserMessage = true
+		}
+		if userPrompt, ok := (*templateArgs)[PROMPT_VAR]; ok && userPrompt != "" {
+			messages = append(messages, openai.UserMessage((*templateArgs)[PROMPT_VAR]))
 			hasUserMessage = true
 		}
 	}
