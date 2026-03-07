@@ -44,8 +44,14 @@ func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *s
 		var err error
 		if step.AIStep != nil {
 			output, err = step.AIStep.Run(ctx, cfg, &templateArgs)
+			if err != nil {
+				err = fmt.Errorf(`AI step with prompt "%s" failed: %w`, step.AIStep.Prompt, err)
+			}
 		} else if step.CommandStep != nil {
 			output, err = step.CommandStep.Run(ctx, cfg, &templateArgs, utils.DefaultBool(step.PipeIn, false))
+			if err != nil {
+				err = fmt.Errorf(`Command step "%s" failed: %w`, step.CommandStep.Command, err)
+			}
 		} else {
 			return "", fmt.Errorf("step has neither AIStep nor CommandStep defined")
 		}
@@ -123,7 +129,10 @@ func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.Tem
 	messages := []openai.ChatCompletionMessageParamUnion{}
 
 	if prompt.System != nil {
-		tmpl := template.Must(template.New("system").Parse(*prompt.System))
+		tmpl, err := template.New("system").Option("missingkey=error").Parse(*prompt.System)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse system prompt: %w", err)
+		}
 		var buf bytes.Buffer
 		if err := tmpl.Execute(&buf, templateArgs); err != nil {
 			return nil, err
@@ -134,7 +143,10 @@ func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.Tem
 
 	hasUserMessage := false
 	if prompt.User != nil {
-		tmpl := template.Must(template.New("user").Parse(*prompt.User))
+		tmpl, err := template.New("user").Option("missingkey=error").Parse(*prompt.User)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse user prompt: %w", err)
+		}
 		var buf bytes.Buffer
 		if err := tmpl.Execute(&buf, templateArgs); err != nil {
 			return nil, err
@@ -201,7 +213,10 @@ func (step CommandStep) Run(ctx context.Context, cfg *Config, templateArgs *prot
 		shellQuotedArgs[k] = utils.ShellQuote(v)
 	}
 
-	tmpl := template.Must(template.New("command").Parse(step.Command))
+	tmpl, err := template.New("command").Parse(step.Command)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse command: %w", err)
+	}
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, shellQuotedArgs); err != nil {
 		return nil, err

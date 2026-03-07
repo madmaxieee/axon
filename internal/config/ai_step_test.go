@@ -72,14 +72,10 @@ func TestAIStep_Run_Errors(t *testing.T) {
 	step3 := AIStep{
 		Prompt: "@bad-syntax",
 	}
-	func() {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Errorf("expected panic for bad template syntax, got none")
-			}
-		}()
-		step3.Run(ctx, cfg3, &proto.TemplateArgs{})
-	}()
+	_, err = step3.Run(ctx, cfg3, &proto.TemplateArgs{})
+	if err == nil || !strings.Contains(err.Error(), "failed to parse system prompt") {
+		t.Errorf("expected parse error, got %v", err)
+	}
 
 	// Error 4: Client option error
 	step4 := AIStep{
