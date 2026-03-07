@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/madmaxieee/axon/internal/cache"
@@ -178,19 +179,31 @@ func init() {
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
-		if cfg != nil {
-			var results []string
-			if strings.HasPrefix(toComplete, "@") {
-				for _, promptName := range cfg.GetAllPromptNames() {
-					results = append(results, "@"+promptName)
-				}
-			} else {
-				results = cfg.GetAllPatternNames()
-			}
-			return results, cobra.ShellCompDirectiveNoFileComp
+		if cfg == nil {
+			return nil, cobra.ShellCompDirectiveError
 		}
-		return []string{}, cobra.ShellCompDirectiveError
+		var results []string
+		if strings.HasPrefix(toComplete, "@") {
+			for _, promptName := range cfg.GetAllPromptNames() {
+				results = append(results, "@"+promptName)
+			}
+		} else {
+			results = cfg.GetAllPatternNames()
+		}
+		return results, cobra.ShellCompDirectiveNoFileComp
 	}
+
+	_ = rootCmd.RegisterFlagCompletionFunc("model", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if cfg == nil {
+			return nil, cobra.ShellCompDirectiveError
+		}
+		var aliases []string
+		for alias := range cfg.General.ModelAliases {
+			aliases = append(aliases, alias)
+		}
+		sort.Strings(aliases)
+		return aliases, cobra.ShellCompDirectiveNoFileComp
+	})
 }
 
 func ReadStdinIfPiped() (*string, error) {

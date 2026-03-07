@@ -257,9 +257,14 @@ func MakeSinglePromptPattern(promptName string) Pattern {
 }
 
 func selectModelForStep(cfg *Config, step AIStep) string {
+	var modelStr string
 	if cfg.OverrideModel != nil {
-		return *cfg.OverrideModel
+		modelStr = *cfg.OverrideModel
+	} else {
+		modelStr = utils.DefaultString(step.Model, *cfg.General.Model)
 	}
-	modelStr := utils.DefaultString(step.Model, *cfg.General.Model)
+	if aliasTarget, ok := cfg.General.ModelAliases[modelStr]; ok {
+		modelStr = aliasTarget
+	}
 	return modelStr
 }

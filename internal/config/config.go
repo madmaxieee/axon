@@ -31,9 +31,9 @@ type ConfigFile struct {
 
 type GeneralConfig struct {
 	// in a form of provider/model
-	PromptPath []string `toml:"prompt_path"`
-	Model      *string
-	// TODO: add other configs like temperature, max tokens, etc.
+	PromptPath   []string `toml:"prompt_path"`
+	Model        *string
+	ModelAliases map[string]string `toml:"model_aliases"`
 }
 
 type ProviderConfig struct {
@@ -101,8 +101,9 @@ You are an expert at interpreting the heart and spirit of a question and answeri
 	},
 	ConfigFile: &ConfigFile{
 		General: GeneralConfig{
-			PromptPath: []string{filepath.Join(GetConfigHome(), "prompts")},
-			Model:      utils.StringPtr("openai/gpt-4o"),
+			PromptPath:   []string{filepath.Join(GetConfigHome(), "prompts")},
+			Model:        utils.StringPtr("openai/gpt-4o"),
+			ModelAliases: make(map[string]string),
 		},
 		Providers: []*ProviderConfig{
 			{
@@ -443,11 +444,19 @@ func (cfg *GeneralConfig) Merge(other *GeneralConfig) error {
 	if other == nil {
 		return nil
 	}
+	if other.PromptPath != nil {
+		cfg.PromptPath = append(cfg.PromptPath, other.PromptPath...)
+	}
 	if other.Model != nil {
 		cfg.Model = other.Model
 	}
-	if other.PromptPath != nil {
-		cfg.PromptPath = append(cfg.PromptPath, other.PromptPath...)
+	if other.ModelAliases != nil {
+		if cfg.ModelAliases == nil {
+			cfg.ModelAliases = make(map[string]string)
+		}
+		for k, v := range other.ModelAliases {
+			cfg.ModelAliases[k] = v
+		}
 	}
 	return nil
 }
