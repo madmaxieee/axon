@@ -21,7 +21,7 @@ func TestCommandStep_Run(t *testing.T) {
 		Command: "echo 'hello world'",
 	}
 	args := proto.TemplateArgs{}
-	out1, err := step1.Run(ctx, cfg, &args, false)
+	out1, err := step1.Run(ctx, cfg, &args)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -36,7 +36,7 @@ func TestCommandStep_Run(t *testing.T) {
 	args2 := proto.TemplateArgs{
 		"PROMPT": "templated value",
 	}
-	out2, err := step2.Run(ctx, cfg, &args2, false)
+	out2, err := step2.Run(ctx, cfg, &args2)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -47,11 +47,12 @@ func TestCommandStep_Run(t *testing.T) {
 	// Command with pipe in
 	step3 := CommandStep{
 		Command: "cat",
+		PipeIn:  utils.BoolPtr(true),
 	}
 	args3 := proto.TemplateArgs{
 		PIPE_VAR: "piped input",
 	}
-	out3, err := step3.Run(ctx, cfg, &args3, true)
+	out3, err := step3.Run(ctx, cfg, &args3)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -48,7 +48,7 @@ func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *s
 				err = fmt.Errorf(`AI step with prompt "%s" failed: %w`, step.AIStep.Prompt, err)
 			}
 		} else if step.CommandStep != nil {
-			output, err = step.CommandStep.Run(ctx, cfg, &templateArgs, utils.DefaultBool(step.PipeIn, false))
+			output, err = step.CommandStep.Run(ctx, cfg, &templateArgs)
 			if err != nil {
 				err = fmt.Errorf(`Command step "%s" failed: %w`, step.CommandStep.Command, err)
 			}
@@ -205,7 +205,7 @@ or
 	return &completion.Choices[0].Message.Content, nil
 }
 
-func (step CommandStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.TemplateArgs, pipeIn bool) (*string, error) {
+func (step CommandStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.TemplateArgs) (*string, error) {
 	shell := utils.GetShell()
 
 	shellQuotedArgs := make(proto.TemplateArgs)
@@ -244,6 +244,7 @@ func (step CommandStep) Run(ctx context.Context, cfg *Config, templateArgs *prot
 		cmd.Stderr = os.Stderr
 	}
 
+	pipeIn := utils.DefaultBool(step.PipeIn, false)
 	if stdin, ok := (*templateArgs)[PIPE_VAR]; ok && pipeIn {
 		cmd.Stdin = bytes.NewBufferString(stdin)
 	}
