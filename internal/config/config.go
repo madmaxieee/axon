@@ -457,9 +457,7 @@ func (cfg *GeneralConfig) Merge(other *GeneralConfig) error {
 		if cfg.ModelAliases == nil {
 			cfg.ModelAliases = make(map[string]string)
 		}
-		for k, v := range other.ModelAliases {
-			cfg.ModelAliases[k] = v
-		}
+		maps.Copy(cfg.ModelAliases, other.ModelAliases)
 	}
 	return nil
 }
