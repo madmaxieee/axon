@@ -55,9 +55,10 @@ steps = [
   # you can reference outputs from previous steps using {{ .output_name }}
   # .commits is used in the @commit_message prompt
   { command = "git log --max-count=10", output = "commits" },
-  # axon's stdin content would be consumed by the first step that "needs input"
+  # axon's stdin content would be consumed by the first step that receives input
+  # from stdin (denoted by a literal pipe character '|' in front of the command).
   # subsequent steps that "needs input" will receive stdin from the previous step's output
-  { command = "git diff --staged", output = "diff", pipe_in = true },
+  { command = "| git diff --staged", output = "diff" },
   { prompt = "@commit_message", output = "commit_message" },
   # you can also reference outputs in commands
   # output is automatically shell-quoted so you don't need to worry about escaping

@@ -65,9 +65,12 @@ type Step struct {
 }
 
 type CommandStep struct {
-	Command string // the command to run, will be ran with $SHELL -c
-	PipeIn  *bool  `toml:"pipe_in"` // whether or not to pipe the previous step's output as input to this step
-	Tty     bool   // whether to connect the running command to a TTY, can't capture output if true
+	// The command to run, will be run with `$SHELL -c {{ .Command }}`, if the
+	// command starts with a literal pipe character "|" (before template
+	// expansion), the output of the previous command will be piped to this
+	// command from stdin, e.g. "| cat" will just output the previous output.
+	Command string
+	Tty     bool // whether to connect the running command to a TTY, can't capture output if true
 }
 
 type AIStep struct {

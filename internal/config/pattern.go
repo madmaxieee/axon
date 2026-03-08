@@ -213,7 +213,19 @@ func (step CommandStep) Run(ctx context.Context, cfg *Config, templateArgs *prot
 		shellQuotedArgs[k] = utils.ShellQuote(v)
 	}
 
-	tmpl, err := template.New("command").Parse(step.Command)
+	trimmedCmd := strings.TrimSpace(step.Command)
+	var commandTemplate string
+	var pipeIn bool
+	if strings.HasPrefix(trimmedCmd, "|") {
+		commandTemplate = trimmedCmd[1:]
+		pipeIn = true
+	} else {
+		commandTemplate = trimmedCmd
+		pipeIn = false
+	}
+	commandTemplate = strings.TrimSpace(commandTemplate)
+
+	tmpl, err := template.New("command").Parse(commandTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse command: %w", err)
 	}
@@ -244,7 +256,6 @@ func (step CommandStep) Run(ctx context.Context, cfg *Config, templateArgs *prot
 		cmd.Stderr = os.Stderr
 	}
 
-	pipeIn := utils.DefaultBool(step.PipeIn, false)
 	if stdin, ok := (*templateArgs)[PIPE_VAR]; ok && pipeIn {
 		cmd.Stdin = bytes.NewBufferString(stdin)
 	}

@@ -46,8 +46,7 @@ func TestCommandStep_Run(t *testing.T) {
 
 	// Command with pipe in
 	step3 := CommandStep{
-		Command: "cat",
-		PipeIn:  utils.BoolPtr(true),
+		Command: "  | cat",
 	}
 	args3 := proto.TemplateArgs{
 		PIPE_VAR: "piped input",
@@ -84,8 +83,7 @@ func TestPattern_Run_CommandOnly(t *testing.T) {
 			},
 			{
 				CommandStep: &CommandStep{
-					Command: "echo \"prev pipe: $(cat), step 1 out: {{.STEP1_OUT}}\"",
-					PipeIn:  utils.BoolPtr(true),
+					Command: "| echo \"prev pipe: $(cat), step 1 out: {{.STEP1_OUT}}\"",
 				},
 			},
 		},
