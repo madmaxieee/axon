@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -38,6 +39,12 @@ func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *s
 		variables[PROMPT_VAR] = *prompt
 	} else {
 		variables[PROMPT_VAR] = ""
+	}
+
+	for _, step := range p.Steps {
+		if err := validateOutputSpecifier(step.Output); err != nil {
+			return "", err
+		}
 	}
 
 	tempManager := temp.NewManager("")
@@ -356,4 +363,34 @@ func selectModelForStep(cfg *Config, step AIStep) string {
 		modelStr = aliasTarget
 	}
 	return modelStr
+}
+
+var keyPattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
+func validateOutputSpecifier(output *string) error {
+	if output == nil {
+		return nil
+	}
+
+	val := *output
+	if val == "" {
+		return fmt.Errorf("output specifier must not be empty")
+	}
+
+	key := val
+	for _, prefix := range []string{">>", ">"} {
+		if k, ok := strings.CutPrefix(val, prefix); ok {
+			if k == "" {
+				return fmt.Errorf("output specifier with '%s' must have a key, e.g. %smyfile", prefix, prefix)
+			}
+			key = k
+			break
+		}
+	}
+
+	if !keyPattern.MatchString(key) {
+		return fmt.Errorf("output key must contain only letters, numbers, and underscores, and must start with a letter or underscore (got '%s')", key)
+	}
+
+	return nil
 }

@@ -129,3 +129,35 @@ func TestExplain(t *testing.T) {
 		t.Errorf("explanation missing output variable")
 	}
 }
+
+func TestValidateOutputSpecifier(t *testing.T) {
+	tests := []struct {
+		name    string
+		output  *string
+		wantErr bool
+	}{
+		{"nil output", nil, false},
+		{"valid variable", utils.StringPtr("MY_VAR_1"), false},
+		{"valid lowercase variable", utils.StringPtr("my_var"), false},
+		{"valid single char", utils.StringPtr("X"), false},
+		{"valid file redirect", utils.StringPtr(">my_file"), false},
+		{"valid file append", utils.StringPtr(">>my_file_2"), false},
+
+		{"empty string", utils.StringPtr(""), true},
+		{"invalid char", utils.StringPtr("MY-VAR"), true},
+		{"invalid start char", utils.StringPtr("1_VAR"), true},
+		{"invalid space", utils.StringPtr("MY VAR"), true},
+		{"empty file redirect", utils.StringPtr(">"), true},
+		{"empty file append", utils.StringPtr(">>"), true},
+		{"invalid file redirect char", utils.StringPtr(">my-file"), true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateOutputSpecifier(tt.output)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateOutputSpecifier() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
