@@ -93,6 +93,9 @@ func (pattern Pattern) Explain(ctx context.Context, cfg *Config) (string, error)
 			}
 		} else if step.CommandStep != nil {
 			explanation.WriteString("  Type: Command Step\n")
+			if step.CommandStep.Stdin != nil {
+				explanation.WriteString(fmt.Sprintf("  Stdin: `%s`\n", *step.CommandStep.Stdin))
+			}
 			explanation.WriteString(fmt.Sprintf("  Command: `%s`\n", step.CommandStep.Command))
 		} else {
 			explanation.WriteString("  Type: Unknown Step\n")
@@ -225,7 +228,11 @@ func (step CommandStep) Run(ctx context.Context, cfg *Config, templateArgs *prot
 	}
 	commandTemplate = strings.TrimSpace(commandTemplate)
 
-	tmpl, err := template.New("command").Parse(commandTemplate)
+	if step.Stdin != nil && pipeIn {
+		return nil, fmt.Errorf("stdin configuration and pipe command (|) are mutually exclusive")
+	}
+
+	tmpl, err := template.New("command").Option("missingkey=error").Parse(commandTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse command: %w", err)
 	}
@@ -256,7 +263,17 @@ func (step CommandStep) Run(ctx context.Context, cfg *Config, templateArgs *prot
 		cmd.Stderr = os.Stderr
 	}
 
-	if stdin, ok := (*templateArgs)[PIPE_VAR]; ok && pipeIn {
+	if step.Stdin != nil {
+		tmpl, err := template.New("stdin").Parse(*step.Stdin)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse stdin: %w", err)
+		}
+		var buf bytes.Buffer
+		if err := tmpl.Execute(&buf, templateArgs); err != nil {
+			return nil, fmt.Errorf("failed to execute stdin template: %w", err)
+		}
+		cmd.Stdin = &buf
+	} else if stdin, ok := (*templateArgs)[PIPE_VAR]; ok && pipeIn {
 		cmd.Stdin = bytes.NewBufferString(stdin)
 	}
 

@@ -70,7 +70,8 @@ type CommandStep struct {
 	// expansion), the output of the previous command will be piped to this
 	// command from stdin, e.g. "| cat" will just output the previous output.
 	Command string
-	Tty     bool // whether to connect the running command to a TTY, can't capture output if true
+	Tty     bool    // whether to connect the running command to a TTY, can't capture output if true
+	Stdin   *string // optional content to pass to the command's stdin, supports template, mutually exclusive with Command starting with "|"
 }
 
 type AIStep struct {
