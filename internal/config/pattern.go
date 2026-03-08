@@ -25,30 +25,30 @@ const (
 var PIPE_VAR = fmt.Sprintf("PIPE_%s", utils.Nonce())
 
 func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *string) (string, error) {
-	templateArgs := make(proto.TemplateArgs)
+	variables := make(map[string]string)
 	if stdin != nil {
-		templateArgs[INPUT_VAR] = *stdin
-		templateArgs[PIPE_VAR] = *stdin
+		variables[INPUT_VAR] = *stdin
+		variables[PIPE_VAR] = *stdin
 	} else {
-		templateArgs[INPUT_VAR] = ""
-		templateArgs[PIPE_VAR] = ""
+		variables[INPUT_VAR] = ""
+		variables[PIPE_VAR] = ""
 	}
 	if prompt != nil {
-		templateArgs[PROMPT_VAR] = *prompt
+		variables[PROMPT_VAR] = *prompt
 	} else {
-		templateArgs[PROMPT_VAR] = ""
+		variables[PROMPT_VAR] = ""
 	}
 
 	for _, step := range p.Steps {
 		var output *string
 		var err error
 		if step.AIStep != nil {
-			output, err = step.AIStep.Run(ctx, cfg, &templateArgs)
+			output, err = step.AIStep.Run(ctx, cfg, &variables)
 			if err != nil {
 				err = fmt.Errorf(`AI step with prompt "%s" failed: %w`, step.AIStep.Prompt, err)
 			}
 		} else if step.CommandStep != nil {
-			output, err = step.CommandStep.Run(ctx, cfg, &templateArgs)
+			output, err = step.CommandStep.Run(ctx, cfg, &variables)
 			if err != nil {
 				err = fmt.Errorf(`Command step "%s" failed: %w`, step.CommandStep.Command, err)
 			}
@@ -61,14 +61,14 @@ func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *s
 
 		if output != nil {
 			if step.Output != nil {
-				templateArgs[*step.Output] = *output
+				variables[*step.Output] = *output
 			} else {
-				templateArgs[PIPE_VAR] = *output
+				variables[PIPE_VAR] = *output
 			}
 		}
 	}
 
-	return templateArgs[PIPE_VAR], nil
+	return variables[PIPE_VAR], nil
 }
 
 func (pattern Pattern) Explain(ctx context.Context, cfg *Config) (string, error) {
@@ -108,7 +108,7 @@ func (pattern Pattern) Explain(ctx context.Context, cfg *Config) (string, error)
 	return explanation.String(), nil
 }
 
-func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.TemplateArgs) (*string, error) {
+func (step AIStep) Run(ctx context.Context, cfg *Config, variables *map[string]string) (*string, error) {
 	var prompt *Prompt
 
 	if strings.HasPrefix(step.Prompt, "@") {
@@ -137,7 +137,7 @@ func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.Tem
 			return nil, fmt.Errorf("failed to parse system prompt: %w", err)
 		}
 		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, templateArgs); err != nil {
+		if err := tmpl.Execute(&buf, variables); err != nil {
 			return nil, err
 		}
 		systemPrompt := buf.String()
@@ -151,7 +151,7 @@ func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.Tem
 			return nil, fmt.Errorf("failed to parse user prompt: %w", err)
 		}
 		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, templateArgs); err != nil {
+		if err := tmpl.Execute(&buf, variables); err != nil {
 			return nil, err
 		}
 		userPrompt := buf.String()
@@ -159,12 +159,12 @@ func (step AIStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.Tem
 		hasUserMessage = true
 	} else {
 		// provide context before user prompt
-		if input, ok := (*templateArgs)[INPUT_VAR]; ok && input != "" {
-			messages = append(messages, openai.UserMessage((*templateArgs)[INPUT_VAR]))
+		if input, ok := (*variables)[INPUT_VAR]; ok && input != "" {
+			messages = append(messages, openai.UserMessage((*variables)[INPUT_VAR]))
 			hasUserMessage = true
 		}
-		if userPrompt, ok := (*templateArgs)[PROMPT_VAR]; ok && userPrompt != "" {
-			messages = append(messages, openai.UserMessage((*templateArgs)[PROMPT_VAR]))
+		if userPrompt, ok := (*variables)[PROMPT_VAR]; ok && userPrompt != "" {
+			messages = append(messages, openai.UserMessage((*variables)[PROMPT_VAR]))
 			hasUserMessage = true
 		}
 	}
@@ -208,11 +208,11 @@ or
 	return &completion.Choices[0].Message.Content, nil
 }
 
-func (step CommandStep) Run(ctx context.Context, cfg *Config, templateArgs *proto.TemplateArgs) (*string, error) {
+func (step CommandStep) Run(ctx context.Context, cfg *Config, variables *map[string]string) (*string, error) {
 	shell := utils.GetShell()
 
-	shellQuotedArgs := make(proto.TemplateArgs)
-	for k, v := range *templateArgs {
+	shellQuotedArgs := make(map[string]string)
+	for k, v := range *variables {
 		shellQuotedArgs[k] = utils.ShellQuote(v)
 	}
 
@@ -269,11 +269,11 @@ func (step CommandStep) Run(ctx context.Context, cfg *Config, templateArgs *prot
 			return nil, fmt.Errorf("failed to parse stdin: %w", err)
 		}
 		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, templateArgs); err != nil {
+		if err := tmpl.Execute(&buf, variables); err != nil {
 			return nil, fmt.Errorf("failed to execute stdin template: %w", err)
 		}
 		cmd.Stdin = &buf
-	} else if stdin, ok := (*templateArgs)[PIPE_VAR]; ok && pipeIn {
+	} else if stdin, ok := (*variables)[PIPE_VAR]; ok && pipeIn {
 		cmd.Stdin = bytes.NewBufferString(stdin)
 	}
 

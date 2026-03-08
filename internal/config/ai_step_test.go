@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/madmaxieee/axon/internal/proto"
 	"github.com/madmaxieee/axon/internal/utils"
 )
 
@@ -30,7 +29,7 @@ func TestAIStep_Run_Errors(t *testing.T) {
 	step1 := AIStep{
 		Prompt: "@missing-prompt",
 	}
-	_, err := step1.Run(ctx, cfg, &proto.TemplateArgs{})
+	_, err := step1.Run(ctx, cfg, &map[string]string{})
 	if err == nil || !strings.Contains(err.Error(), "prompt missing-prompt not found") {
 		t.Errorf("expected prompt not found error, got %v", err)
 	}
@@ -51,7 +50,7 @@ func TestAIStep_Run_Errors(t *testing.T) {
 	step2 := AIStep{
 		Prompt: "@sys-only",
 	}
-	_, err = step2.Run(ctx, cfg2, &proto.TemplateArgs{})
+	_, err = step2.Run(ctx, cfg2, &map[string]string{})
 	if err == nil || !strings.Contains(err.Error(), "No user message found") {
 		t.Errorf("expected no user message error, got %v", err)
 	}
@@ -72,7 +71,7 @@ func TestAIStep_Run_Errors(t *testing.T) {
 	step3 := AIStep{
 		Prompt: "@bad-syntax",
 	}
-	_, err = step3.Run(ctx, cfg3, &proto.TemplateArgs{})
+	_, err = step3.Run(ctx, cfg3, &map[string]string{})
 	if err == nil || !strings.Contains(err.Error(), "failed to parse system prompt") {
 		t.Errorf("expected parse error, got %v", err)
 	}
@@ -82,7 +81,7 @@ func TestAIStep_Run_Errors(t *testing.T) {
 		Prompt: "direct content",
 		Model:  utils.StringPtr("unknown-provider/gpt-4"),
 	}
-	args4 := proto.TemplateArgs{
+	args4 := map[string]string{
 		"PROMPT": "has user message",
 	}
 	_, err = step4.Run(ctx, cfg, &args4)

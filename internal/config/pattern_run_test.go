@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/madmaxieee/axon/internal/proto"
 	"github.com/madmaxieee/axon/internal/utils"
 )
 
@@ -20,7 +19,7 @@ func TestCommandStep_Run(t *testing.T) {
 	step1 := CommandStep{
 		Command: "echo 'hello world'",
 	}
-	args := proto.TemplateArgs{}
+	args := map[string]string{}
 	out1, err := step1.Run(ctx, cfg, &args)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -33,7 +32,7 @@ func TestCommandStep_Run(t *testing.T) {
 	step2 := CommandStep{
 		Command: "echo {{.PROMPT}}",
 	}
-	args2 := proto.TemplateArgs{
+	args2 := map[string]string{
 		"PROMPT": "templated value",
 	}
 	out2, err := step2.Run(ctx, cfg, &args2)
@@ -48,7 +47,7 @@ func TestCommandStep_Run(t *testing.T) {
 	step3 := CommandStep{
 		Command: "  | cat",
 	}
-	args3 := proto.TemplateArgs{
+	args3 := map[string]string{
 		PIPE_VAR: "piped input",
 	}
 	out3, err := step3.Run(ctx, cfg, &args3)

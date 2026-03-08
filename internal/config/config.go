@@ -53,7 +53,6 @@ type Prompt struct {
 }
 
 type Pattern struct {
-	// TODO: add description field
 	Name  string
 	Steps []Step
 }
