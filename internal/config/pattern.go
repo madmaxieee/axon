@@ -13,6 +13,7 @@ import (
 	"github.com/madmaxieee/axon/internal"
 	"github.com/madmaxieee/axon/internal/client"
 	"github.com/madmaxieee/axon/internal/proto"
+	"github.com/madmaxieee/axon/internal/temp"
 	"github.com/madmaxieee/axon/internal/utils"
 	"github.com/openai/openai-go/v3"
 )
@@ -39,6 +40,9 @@ func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *s
 		variables[PROMPT_VAR] = ""
 	}
 
+	tempManager := temp.NewManager("")
+	defer tempManager.Cleanup()
+
 	for _, step := range p.Steps {
 		var output *string
 		var err error
@@ -60,15 +64,57 @@ func (p *Pattern) Run(ctx context.Context, cfg *Config, stdin *string, prompt *s
 		}
 
 		if output != nil {
-			if step.Output != nil {
-				variables[*step.Output] = *output
-			} else {
-				variables[PIPE_VAR] = *output
+			if err := storeStepOutput(step, *output, variables, tempManager); err != nil {
+				return "", fmt.Errorf("failed to store step output: %w", err)
 			}
 		}
 	}
 
 	return variables[PIPE_VAR], nil
+}
+
+func storeStepOutput(step Step, content string, variables map[string]string, tempManager *temp.Manager) error {
+	if step.Output == nil {
+		variables[PIPE_VAR] = content
+		return nil
+	}
+
+	output := *step.Output
+	var key string
+	var appendMode bool
+
+	if k, ok := strings.CutPrefix(output, ">>"); ok {
+		key = k
+		appendMode = true
+	} else if k, ok := strings.CutPrefix(output, ">"); ok {
+		key = k
+		appendMode = false
+	} else {
+		variables[output] = content
+		return nil
+	}
+
+	tempFile, err := tempManager.GetTempFile(key)
+	if err != nil {
+		return fmt.Errorf("failed to get temp file for output %s: %w", output, err)
+	}
+
+	if appendMode {
+		err = tempFile.AppendText(content)
+	} else {
+		err = tempFile.WriteText(content)
+	}
+
+	if err != nil {
+		op := "write"
+		if appendMode {
+			op = "append"
+		}
+		return fmt.Errorf("failed to %s to temp file for output %s: %w", op, output, err)
+	}
+
+	variables[key] = tempFile.Path()
+	return nil
 }
 
 func (pattern Pattern) Explain(ctx context.Context, cfg *Config) (string, error) {
@@ -80,8 +126,7 @@ func (pattern Pattern) Explain(ctx context.Context, cfg *Config) (string, error)
 			explanation.WriteString("  Type: AI Step\n")
 			explanation.WriteString(fmt.Sprintf("  Model: %s\n", selectModelForStep(cfg, *step.AIStep)))
 			explanation.WriteString(fmt.Sprintf("  Prompt: %s\n", step.AIStep.Prompt))
-			if strings.HasPrefix(step.AIStep.Prompt, "@") {
-				promptName := step.AIStep.Prompt[1:]
+			if promptName, ok := strings.CutPrefix(step.AIStep.Prompt, "@"); ok {
 				prompt, err := cfg.GetPromptByName(promptName)
 				if err != nil {
 					return "", err
