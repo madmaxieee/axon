@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/madmaxieee/axon/internal/client"
@@ -463,21 +464,62 @@ func (cfg *GeneralConfig) Merge(other *GeneralConfig) error {
 }
 
 func EnsureConfig(configFilePath *string) (*Config, error) {
-	data, err := os.ReadFile(*configFilePath)
+	cfg := defaultConfig
 
+	// Load main config file
+	data, err := os.ReadFile(*configFilePath)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-
-	var configFile ConfigFile
-	err = toml.Unmarshal(data, &configFile)
-	if err != nil {
-		return nil, err
+	if err == nil {
+		var configFile ConfigFile
+		err = toml.Unmarshal(data, &configFile)
+		if err != nil {
+			return nil, err
+		}
+		err = cfg.Merge(&Config{ConfigFile: &configFile})
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	cfg := defaultConfig
-	err = cfg.Merge(&Config{ConfigFile: &configFile})
-	return &cfg, err
+	// Load conf.d/*.toml files
+	configDir := filepath.Dir(*configFilePath)
+	confDir := filepath.Join(configDir, "conf.d")
+	entries, err := os.ReadDir(confDir)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+		return &cfg, nil
+	}
+
+	var confFiles []string
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".toml") {
+			confFiles = append(confFiles, entry.Name())
+		}
+	}
+	sort.Strings(confFiles)
+
+	for _, name := range confFiles {
+		path := filepath.Join(confDir, name)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		var configFile ConfigFile
+		err = toml.Unmarshal(data, &configFile)
+		if err != nil {
+			return nil, err
+		}
+		err = cfg.Merge(&Config{ConfigFile: &configFile})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &cfg, nil
 }
 
 func GetOverrideConfig(flags proto.Flags) *Config {
