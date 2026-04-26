@@ -506,16 +506,19 @@ func EnsureConfig(configFilePath *string) (*Config, error) {
 		path := filepath.Join(confDir, name)
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return nil, err
+			fmt.Fprintf(os.Stderr, "warning: skipping %s: %v\n", path, err)
+			continue
 		}
 		var configFile ConfigFile
 		err = toml.Unmarshal(data, &configFile)
 		if err != nil {
-			return nil, err
+			fmt.Fprintf(os.Stderr, "warning: skipping %s: %v\n", path, err)
+			continue
 		}
 		err = cfg.Merge(&Config{ConfigFile: &configFile})
 		if err != nil {
-			return nil, err
+			fmt.Fprintf(os.Stderr, "warning: skipping %s: %v\n", path, err)
+			continue
 		}
 	}
 
